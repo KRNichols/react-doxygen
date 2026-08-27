@@ -35,14 +35,15 @@ def mailbox(tmp_path, monkeypatch):
 
 
 @pytest.fixture
-def client(mailbox):
+def client(mailbox, monkeypatch):
     """
     What: In-process Flask test client with an isolated mailbox.
     Why: Portal API tests must use the Flask client, not a live HTTP server.
     Who: Every test that takes a client argument.
     Where: app.test_client after TESTING=True.
-    How: Yield the client inside a context so the session cookie stays in-process.
+    How: Turn DEMO_LOGIN on for the suite, then yield the client inside a context so the session cookie stays in-process.
     """
+    monkeypatch.setenv("DEMO_LOGIN", "1")
     app.config.update(TESTING=True)
     with app.test_client() as test_client:
         yield test_client

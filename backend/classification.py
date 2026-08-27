@@ -7,6 +7,7 @@ claim that the demo can hold CUI or classified data.
 from __future__ import annotations
 
 import os
+import re
 
 LEVELS = {
     "unclassified": {"color": "#007A33", "text": "UNCLASSIFIED"},
@@ -30,6 +31,23 @@ DISCLAIMER = "Label only. Not an authorization to operate."
 _FALLBACK = LEVELS["unclassified"]
 _WHITE = "#FFFFFF"
 _BLACK = "#000000"
+HEX_COLOR = re.compile(r"^#[0-9A-Fa-f]{6}$")
+
+
+def safe_hex_color(raw: str | None) -> str:
+    """
+    What: Normalize a custom banner color to a six-digit hex swatch.
+    Why: A free-text CLASSIFICATION_CUSTOM_COLOR must not become a CSS injection.
+    Who: banner() on the CUSTOM branch.
+    Where: CLASSIFICATION_CUSTOM_COLOR from .env or the CI dropdown.
+    How: Prepend # when it is missing; keep the value if it matches HEX_COLOR; otherwise #333333.
+    """
+    text = (raw or "").strip()
+    if text and not text.startswith("#"):
+        text = f"#{text}"
+    if HEX_COLOR.fullmatch(text):
+        return text
+    return "#333333"
 
 
 def _norm_key(raw: str) -> str:
@@ -161,7 +179,7 @@ def banner() -> dict:
     if key == "custom":
         level = "custom"
         text = (os.environ.get("CLASSIFICATION_CUSTOM_TEXT") or "").strip() or "CUSTOM"
-        color = _format_hex(os.environ.get("CLASSIFICATION_CUSTOM_COLOR") or "")
+        color = safe_hex_color(os.environ.get("CLASSIFICATION_CUSTOM_COLOR") or "")
     elif key in LEVELS:
         spec = LEVELS[key]
         level = key

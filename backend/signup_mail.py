@@ -63,10 +63,14 @@ def _is_dev() -> bool:
     What: True when Flask is running in development mode.
     Why: Mailbox listing must not leak applicant mail in production.
     Who: Public is_dev wrapper and mailbox list gate.
-    Where: FLASK_DEBUG env (default on).
-    How: Treat 0/false/False as production.
+    Where: FLASK_DEBUG env (default off).
+    How: Treat only 1/true/yes as development after a case-fold.
     """
-    return os.environ.get("FLASK_DEBUG", "1") not in ("0", "false", "False")
+    return (os.environ.get("FLASK_DEBUG") or "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+    }
 
 
 def is_dev() -> bool:

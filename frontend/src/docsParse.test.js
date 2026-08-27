@@ -11,6 +11,7 @@ import {
   extractTitle,
   parseHtml,
   stripTitleAttributes,
+  dropUnsafeAttrs,
   extractToc,
 } from "./docsParse.js";
 import { F18_STILLS, pickStill } from "./stills.js";
@@ -91,6 +92,18 @@ describe("parseHtml extractTitle stripTitleAttributes extractToc", () => {
     expect(doc.querySelector("[title]")).toBeNull();
     const toc = extractToc(doc.body);
     expect(toc.some((item) => item.text === "Overview")).toBe(true);
+  });
+});
+
+describe("dropUnsafeAttrs", () => {
+  it("removes onclick and javascript: href", () => {
+    const doc = parseHtml(
+      '<html><body><a href="javascript:alert(1)" onclick="alert(1)">x</a></body></html>',
+    );
+    dropUnsafeAttrs(doc);
+    const el = doc.querySelector("a");
+    expect(el.hasAttribute("onclick")).toBe(false);
+    expect(el.getAttribute("href")).toBeNull();
   });
 });
 

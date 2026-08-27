@@ -12,6 +12,39 @@ ALLOWLIST = ROOT / "approved-packages.json"
 REQ_NAME = re.compile(
     r"^\s*([A-Za-z0-9][A-Za-z0-9._-]*)\s*([<>=!~][^;#]+)?",
 )
+PY_EXACT = re.compile(r"^==\d+\.\d+\.\d+$")
+NODE_EXACT = re.compile(r"^\d+\.\d+\.\d+$")
+
+
+def is_exact_pin(spec: str, kind: str) -> bool:
+    """
+    What: True when a specifier is an exact X.Y.Z pin for that ecosystem.
+    Why: Ranges and carets must fail the allowlist gate.
+    Who: check_exact when it grades declared and allowlist maps.
+    Where: Backend ==X.Y.Z pins and frontend X.Y.Z pins.
+    How: Match PY_EXACT for python and NODE_EXACT for node after stripping.
+    """
+    text = (spec or "").strip()
+    if kind == "python":
+        return bool(PY_EXACT.fullmatch(text))
+    return bool(NODE_EXACT.fullmatch(text))
+
+
+def check_exact(label: str, pins: dict[str, str], kind: str) -> list[str]:
+    """
+    What: Fail every name whose specifier is not an exact pin.
+    Why: >=, ^, and ~ must not sneak past the declared-package gate.
+    Who: check_manifests for declared manifests and the allowlist.
+    Where: Failure text printed by main and asserted in test_packages.
+    How: Walk each name and record a line when is_exact_pin is false.
+    """
+    failures: list[str] = []
+    for name, spec in sorted(pins.items()):
+        if not is_exact_pin(spec, kind):
+            failures.append(
+                f"{label}: {name} specifier {spec!r} is not an exact pin"
+            )
+    return failures
 
 
 def pep503(name: str) -> str:
@@ -117,7 +150,7 @@ def check_manifests(root: Path | None = None) -> list[str]:
     Why: make packages / make ci must fail a new first-party dependency.
     Who: main and backend/tests/test_packages.py.
     Where: requirements files and frontend/package.json vs approved-packages.json.
-    How: Load both sides, then check_side for backend and frontend.
+    How: Load both sides, check_side for backend and frontend, then check_exact on declared and allowlist maps.
     """
     base = root or ROOT
     allow = load_allowlist(base / "approved-packages.json")
@@ -126,6 +159,10 @@ def check_manifests(root: Path | None = None) -> list[str]:
     failures: list[str] = []
     failures.extend(check_side("backend", backend, allow["backend"]))
     failures.extend(check_side("frontend", frontend, allow["frontend"]))
+    failures.extend(check_exact("backend", backend, "python"))
+    failures.extend(check_exact("backend-allowlist", allow["backend"], "python"))
+    failures.extend(check_exact("frontend", frontend, "node"))
+    failures.extend(check_exact("frontend-allowlist", allow["frontend"], "node"))
     return failures
 
 

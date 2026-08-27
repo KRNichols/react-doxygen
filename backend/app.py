@@ -49,12 +49,70 @@ OKTA_REDIRECT_URI = os.environ.get(
 )
 USE_MOCK = not OKTA_ISSUER
 
+BANNED_SECRETS = frozenset(
+    {
+        "",
+        "dev-f18-portal-secret",
+        "changeme",
+        "secret",
+        "flask-secret",
+        "example",
+        "default",
+    }
+)
+
+
+def demo_login_on() -> bool:
+    """
+    What: True only when DEMO_LOGIN is an explicit on-switch.
+    Why: Demo email/password fields and the mock IdP stay hidden in normal deploys.
+    Who: mock_okta_hosted and api_copy.
+    Where: DEMO_LOGIN in the process environment.
+    How: Case-fold the value and accept only 1, true, or yes.
+    """
+    return (os.environ.get("DEMO_LOGIN") or "").strip().lower() in {"1", "true", "yes"}
+
+
+def require_flask_secret() -> str:
+    """
+    What: Load FLASK_SECRET and reject empty or stand-in values.
+    Why: A shipped default cookie key would let anyone forge portal sessions.
+    Who: App startup when secret_key is assigned.
+    Where: FLASK_SECRET in the process environment.
+    How: Strip the value; raise RuntimeError when it is empty, on the banned list, or contains example/default.
+    """
+    raw = (os.environ.get("FLASK_SECRET") or "").strip()
+    folded = raw.lower()
+    if not raw or folded in BANNED_SECRETS or "example" in folded or "default" in folded:
+        raise RuntimeError(
+            "FLASK_SECRET is required and must not be empty, banned, or contain example/default."
+        )
+    return raw
+
+
+def cookie_secure() -> bool:
+    """
+    What: Decide whether session cookies should carry the Secure flag.
+    Why: HTTPS deploys must not leak the session cookie on cleartext hops.
+    Who: Flask SESSION_COOKIE_SECURE and HSTS in security_headers.
+    Where: COOKIE_SECURE and HOST in the process environment.
+    How: 1/true/yes force on; 0/false/no force off; otherwise Secure unless HOST is 127.0.0.1, localhost, or ::1.
+    """
+    flag = (os.environ.get("COOKIE_SECURE") or "").strip().lower()
+    if flag in {"1", "true", "yes"}:
+        return True
+    if flag in {"0", "false", "no"}:
+        return False
+    host = (os.environ.get("HOST") or "127.0.0.1").strip().lower()
+    return host not in {"127.0.0.1", "localhost", "::1"}
+
+
 app = Flask(__name__)
-app.secret_key = os.environ.get("FLASK_SECRET", "dev-f18-portal-secret")
+app.secret_key = require_flask_secret()
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",
-    SESSION_COOKIE_SECURE=False,
+    SESSION_COOKIE_SECURE=cookie_secure(),
     SESSION_COOKIE_NAME="f18_session",
     PERMANENT_SESSION_LIFETIME=8 * 60 * 60,
 )
@@ -64,6 +122,26 @@ CORS(
     resources={r"/api/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173"]}},
     supports_credentials=True,
 )
+
+
+@app.after_request
+def security_headers(response):
+    """
+    What: Attach browser security headers to every Flask response.
+    Why: Clickjacking, MIME sniffing, and inline script should not be the default.
+    Who: All routes after they finish, including /api/health.
+    Where: Response headers on this Flask app.
+    How: Stamp nosniff, DENY, Referrer-Policy, and script-src CSP; add HSTS only when cookies are Secure.
+    """
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Content-Security-Policy"] = "script-src 'self'"
+    if cookie_secure():
+        response.headers["Strict-Transport-Security"] = (
+            "max-age=31536000; includeSubDomains"
+        )
+    return response
 
 
 def _wants_json() -> bool:
@@ -179,10 +257,12 @@ def mock_okta_hosted():
     Why: Local demos need an IdP without a live Okta tenant.
     Who: auth_login redirect, SPA login() POST, browser form POST.
     Where: GET/POST /api/auth/mock/okta (disabled when OKTA_ISSUER is set).
-    How: GET renders HTML or JSON; POST authenticates, issues a code, exchanges or redirects.
+    How: 403 unless demo_login_on; GET renders HTML or JSON; POST authenticates, issues a code, exchanges or redirects.
     """
     if not USE_MOCK:
         return _error("Mock IdP is disabled because OKTA_ISSUER is set.", 404)
+    if not demo_login_on():
+        return _error("Demo login is disabled.", 403)
 
     if request.method == "GET":
         state = request.args.get("state", "")
@@ -277,8 +357,8 @@ def auth_callback():
 
     if not code or not state:
         return _error("Missing code or state.", 400)
-    if expected and expected != state:
-        return _error("State mismatch. Possible CSRF.", 400)
+    if not expected or expected != state:
+        return _error("State mismatch.", 400)
 
     rec = store.exchange_code(code, state)
     if rec is None:
@@ -290,13 +370,13 @@ def auth_callback():
     return redirect(dest)
 
 
-@app.route("/api/auth/logout", methods=["GET", "POST"])
+@app.post("/api/auth/logout")
 def auth_logout():
     """
     What: Clear the session and send the user to the signed-out page.
-    Why: Success "Sign out" and GET logout links must end the cookie session.
-    Who: frontend api.logout; GET/POST /api/auth/logout.
-    Where: Portal session cookie.
+    Why: Success Sign out must end the cookie session without a GET side effect.
+    Who: frontend api.logout; POST /api/auth/logout only.
+    Where: Portal session cookie. GET is not registered so it returns 405.
     How: session.clear(); JSON {ok, redirect} or 302 /logged-out.
     """
     session.clear()
@@ -336,11 +416,19 @@ def api_copy():
     Why: The SPA renders configurable copy without a frontend rebuild.
     Who: frontend api.copy / CopyProvider; operators curling /api/copy.
     Where: GET /api/copy (unauthenticated; Vite proxies it in dev).
-    How: Copy the catalog, attach notify_address(), then banner() as classification.
+    How: Copy the catalog, attach notify_address() and demoLogin, pop demo hints when off, then banner() as classification.
     """
     data = dict(get_copy())
     data["notifyEmail"] = notify_address()
     data["classification"] = banner()
+    data["demoLogin"] = demo_login_on()
+    login = dict(data.get("login") or {})
+    if not data["demoLogin"]:
+        login.pop("hintAuthorizedEmail", None)
+        login.pop("hintAuthorizedPassword", None)
+        login.pop("hintVisitorEmail", None)
+        login.pop("hintVisitorPassword", None)
+    data["login"] = login
     return jsonify(data)
 
 
@@ -507,5 +595,10 @@ MOCK_LOGIN_HTML = """
 
 
 if __name__ == "__main__":
-    debug = os.environ.get("FLASK_DEBUG", "1") not in ("0", "false", "False")
-    app.run(host="0.0.0.0", port=5000, debug=debug)
+    debug = (os.environ.get("FLASK_DEBUG") or "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+    }
+    host = (os.environ.get("HOST") or "127.0.0.1").strip() or "127.0.0.1"
+    app.run(host=host, port=5000, debug=debug)
