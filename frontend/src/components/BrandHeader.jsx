@@ -30,7 +30,7 @@ function BoeingMark({ invert = true }) {
  * What: Full-width classification strip painted from the copy payload.
  * Why: Every scene must show the same display-only marking without a tooltip.
  * Who: BrandHeader (top) and Footer (bottom).
- * Where: .class-banner inside .chrome-top or .chrome-bottom.
+ * Where: Fixed .class-banner-top / .class-banner-bottom on every screen.
  * How: Read classification from useCopy, color the bar, keep the disclaimer screen-reader only.
  */
 export function ClassificationBanner({ position }) {
@@ -77,17 +77,16 @@ export default function BrandHeader() {
 }
 
 /**
- * What: Bottom chrome: classification banner, then mark + two legal lines.
- * Why: Demonstration disclaimer must stay configurable like the rest of the copy.
- * Who: Same pages as BrandHeader, including Docs.
- * Where: .chrome-bottom wrapping the simple .site-footer. No link columns.
- * How: ClassificationBanner bottom, then brand.footerNote and brand.footerCopy.
+ * What: Bottom chrome: mark + two legal lines, then the last-painted banner.
+ * Why: The footer stays above the flush bottom label; no link columns.
+ * Who: Same pages as BrandHeader.
+ * Where: .chrome-bottom at the bottom of each stage; banner is last in the tree.
+ * How: brand.footerNote and brand.footerCopy, then ClassificationBanner.
  */
 export function Footer() {
   const { brand } = useCopy();
   return (
     <div className="chrome-bottom">
-      <ClassificationBanner position="bottom" />
       <footer className="site-footer">
         <div className="footer-simple">
           <BoeingMark invert />
@@ -95,6 +94,7 @@ export function Footer() {
           <p className="footer-copy">{brand.footerCopy}</p>
         </div>
       </footer>
+      <ClassificationBanner position="bottom" />
     </div>
   );
 }
