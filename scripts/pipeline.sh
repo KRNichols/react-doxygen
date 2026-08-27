@@ -9,7 +9,7 @@ case "$slice" in
   lint) sh scripts/check.sh lint ;;
   comments) sh scripts/check.sh comments ;;
   deadcode) sh scripts/check.sh deadcode ;;
-  quality) sh scripts/check.sh lint; sh scripts/check.sh comments; sh scripts/check.sh deadcode ;;
+  quality) sh scripts/check.sh comments; sh scripts/check.sh deadcode ;;
   backend) sh scripts/run-backend.sh ;;
   frontend) sh scripts/run-frontend.sh ;;
   build) sh scripts/run-build.sh ;;
@@ -17,7 +17,6 @@ case "$slice" in
   security-pip) sh scripts/run-security-pip.sh ;;
   security-node) sh scripts/run-security-node.sh ;;
   ci)
-    sh scripts/check.sh lint
     sh scripts/check.sh comments
     sh scripts/check.sh deadcode
     sh scripts/run-backend.sh

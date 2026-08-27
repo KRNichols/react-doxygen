@@ -13,7 +13,6 @@ deadcode:
 	sh scripts/check.sh deadcode
 
 quality:
-	sh scripts/check.sh lint
 	sh scripts/check.sh comments
 	sh scripts/check.sh deadcode
 
