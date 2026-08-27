@@ -646,8 +646,10 @@ handled by `GET /api/docs/meta` (same JSON as above).
 
 Allowed extensions: `.html`, `.css`, `.js`, `.png`, `.svg`, `.gif`, `.jpg`,
 `.jpeg`, `.woff`, `.woff2`, `.ico`, `.map`, `.md`. Empty path or a trailing
-slash becomes `index.html`. `..`, NUL, and non-allowlisted extensions are
-rejected.
+slash becomes `index.html`. NUL, `..` segments, and non-allowlisted
+extensions fail `normalize_doc_path` and return **400**. A literal `..`
+in the URL may be rejected by the HTTP stack as a Werkzeug HTML **404**
+before this handler runs.
 
 ### Status codes
 
