@@ -16,6 +16,11 @@ if [ ! -x "$RUFF" ]; then
   RUFF=ruff
 fi
 target=${1:-check}
+# WHAT: Language lint for Python and, when present, JavaScript.
+# WHY: Style errors should fail before tests run.
+# WHO: make lint and the check slice.
+# WHERE: backend Python and frontend JS.
+# HOW: ruff on backend. eslint on frontend when the binary exists; otherwise say so.
 lint() {
   "$RUFF" check backend/*.py backend/scripts/*.py
   if [ -x frontend/node_modules/.bin/eslint ]; then
@@ -26,9 +31,19 @@ lint() {
     echo "eslint not installed; JS lint runs in the frontend gate"
   fi
 }
+# WHAT: Five-part comment inventory on the whole first-party tree.
+# WHY: A docs-only change is not a comment upgrade; --all must still be green.
+# WHO: make comments and make quality.
+# WHERE: backend/scripts/check_comments.py
+# HOW: Always pass --all so the gate does not shrink to a delta.
 comments() {
   "$PYTHON" backend/scripts/check_comments.py --all
 }
+# WHAT: Unused import and unused variable scan.
+# WHY: Dead names should not land just because tests still pass.
+# WHO: make deadcode and make quality.
+# WHERE: backend Python.
+# HOW: ruff rules F401 and F841 only.
 deadcode() {
   "$RUFF" check --select F401,F841 backend/*.py backend/scripts/*.py
 }
