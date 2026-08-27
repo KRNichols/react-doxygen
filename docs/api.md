@@ -98,12 +98,14 @@ Public routes that do **not** require a session: `/api/health`, `/api/copy`,
 
 ## `GET /api/copy`
 
-- **WHAT:** Public JSON of merged user-facing strings plus `notifyEmail`.
+- **WHAT:** Public JSON of merged user-facing strings plus `notifyEmail`
+  and `classification`.
 - **WHY:** The SPA renders configurable copy without a frontend rebuild.
 - **WHO:** `frontend` `api.copy` / `CopyProvider`; operators curling `/api/copy`.
 - **WHERE:** Unauthenticated. Vite proxies it in development.
 - **HOW:** `get_copy()` (`backend/copy.json` + `COPY_*` env, mtime cache) then
-  attach `notify_address()`.
+  attach `notify_address()` and `classification` `{level, text, color, ink,
+  disclaimer}` from `banner()`. The banner is a label only, not an ATO.
 
 **Method:** `GET`  
 **Auth:** none  
@@ -117,7 +119,7 @@ Public routes that do **not** require a session: `/api/health`, `/api/copy`,
 
 ### Response JSON (200)
 
-The body is the merged copy catalog plus one handler-added key:
+The body is the merged copy catalog plus handler-added keys:
 
 | Field | Type | Source |
 |---|---|---|
@@ -131,6 +133,11 @@ The body is the merged copy catalog plus one handler-added key:
 | `email` | object | `copy.json` / `COPY_*` |
 | `docs` | object | `copy.json` / `COPY_*` |
 | `notifyEmail` | string | `SIGNUP_NOTIFY_EMAIL`, default `program.access@localhost` |
+| `classification` | object | `banner()` from `CLASSIFICATION` env. Label only, not an ATO. |
+
+`classification` fields: `level`, `text`, `color`, `ink`, `disclaimer`.
+Default is `UNCLASSIFIED` / `#007A33` / white ink. `disclaimer` is
+`Label only. Not an authorization to operate.`
 
 Nested keys inside each section match `backend/copy.json` (for example
 `brand.programName`, `login.title`, `docs.title`). `COPY_<SECTION>_<KEY>`

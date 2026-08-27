@@ -27,42 +27,74 @@ function BoeingMark({ invert = true }) {
 }
 
 /**
- * What: Top chrome: Boeing mark + program name linking home.
- * Why: Every scene needs the same branded header without Search/Menu.
- * Who: Login, Signup, SignupSent, Success, Denied, LoggedOut.
- * Where: .site-header on each stage.
- * How: Read brand.programName / headerAria from useCopy().
+ * What: Full-width classification strip painted from the copy payload.
+ * Why: Every scene must show the same display-only marking without a tooltip.
+ * Who: BrandHeader (top) and Footer (bottom).
+ * Where: .class-banner inside .chrome-top or .chrome-bottom.
+ * How: Read classification from useCopy, color the bar, keep the disclaimer screen-reader only.
  */
-export default function BrandHeader() {
-  const { brand } = useCopy();
+export function ClassificationBanner({ position }) {
+  const { classification } = useCopy();
+  const banner = classification || {};
+  const text = banner.text || "UNCLASSIFIED";
+  const color = banner.color || "#007A33";
+  const ink = banner.ink || "#FFFFFF";
+  const disclaimer = banner.disclaimer || "Label only. Not an authorization to operate.";
   return (
-    <header className="site-header">
-      <div className="site-header-inner">
-        <Link className="brand-lockup" to="/" aria-label={brand.headerAria}>
-          <BoeingMark />
-          <span className="brand-program">{brand.programName}</span>
-        </Link>
-      </div>
-    </header>
+    <div
+      className={`class-banner class-banner-${position}`}
+      role="note"
+      style={{ backgroundColor: color, color: ink }}
+    >
+      <span>{text}</span>
+      <span className="sr-only">{disclaimer}</span>
+    </div>
   );
 }
 
 /**
- * What: Simple footer (mark + two legal lines). No link columns.
+ * What: Top chrome: classification banner, then Boeing mark + program name.
+ * Why: Every scene needs the same branded header without Search/Menu.
+ * Who: Login, Signup, SignupSent, Success, Denied, LoggedOut, Docs.
+ * Where: .chrome-top wrapping .site-header on each stage.
+ * How: ClassificationBanner top, then brand.programName / headerAria from useCopy().
+ */
+export default function BrandHeader() {
+  const { brand } = useCopy();
+  return (
+    <div className="chrome-top">
+      <ClassificationBanner position="top" />
+      <header className="site-header">
+        <div className="site-header-inner">
+          <Link className="brand-lockup" to="/" aria-label={brand.headerAria}>
+            <BoeingMark />
+            <span className="brand-program">{brand.programName}</span>
+          </Link>
+        </div>
+      </header>
+    </div>
+  );
+}
+
+/**
+ * What: Bottom chrome: classification banner, then mark + two legal lines.
  * Why: Demonstration disclaimer must stay configurable like the rest of the copy.
- * Who: Same pages as BrandHeader.
- * Where: .site-footer at the bottom of each stage.
- * How: brand.footerNote and brand.footerCopy from useCopy().
+ * Who: Same pages as BrandHeader, including Docs.
+ * Where: .chrome-bottom wrapping the simple .site-footer. No link columns.
+ * How: ClassificationBanner bottom, then brand.footerNote and brand.footerCopy.
  */
 export function Footer() {
   const { brand } = useCopy();
   return (
-    <footer className="site-footer">
-      <div className="footer-simple">
-        <BoeingMark invert />
-        <p>{brand.footerNote}</p>
-        <p className="footer-copy">{brand.footerCopy}</p>
-      </div>
-    </footer>
+    <div className="chrome-bottom">
+      <ClassificationBanner position="bottom" />
+      <footer className="site-footer">
+        <div className="footer-simple">
+          <BoeingMark invert />
+          <p>{brand.footerNote}</p>
+          <p className="footer-copy">{brand.footerCopy}</p>
+        </div>
+      </footer>
+    </div>
   );
 }
