@@ -13,7 +13,7 @@ Product:
 - Flask `==3.0.0`
 - flask-cors `==4.0.0`
 - python-dotenv `==1.0.0`
-- itsdangerous `==2.1.0`
+- itsdangerous `==2.2.0`
 - boto3 `==1.34.0`
 - ruff `==0.6.0`
 
@@ -29,7 +29,7 @@ Product:
 
 - react `18.3.1`
 - react-dom `18.3.1`
-- react-router-dom `6.26.2`
+- react-router-dom `6.30.6`
 
 Existing vite / vitest / eslint / testing-library set:
 
