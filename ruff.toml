@@ -1,0 +1,6 @@
+target-version = "py311"
+exclude = [".venv", "frontend", "backend/doxygen-mock", "backend/mailbox", "backend/.venv"]
+
+[lint]
+select = ["E", "F", "W"]
+ignore = ["E501"]
