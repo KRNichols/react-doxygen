@@ -36,6 +36,35 @@ variables:
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
   PYTHON: python
   RUFF: ruff
+  # WHAT: Display-only classification marking for this pipeline run.
+  # WHY: Operators flip the same CLASSIFICATION key the Flask banner reads.
+  # WHO: A GitLab runner, or a person starting a pipeline from the UI.
+  # WHERE: GitLab CI/CD variables dropdown. Not an ATO or a data claim.
+  # HOW: Prefill UNCLASSIFIED; the listed options match backend LEVELS plus CUSTOM.
+  CLASSIFICATION:
+    value: UNCLASSIFIED
+    options:
+      - UNCLASSIFIED
+      - CUI
+      - CONFIDENTIAL
+      - SECRET
+      - "TOP SECRET"
+      - ITAR
+      - CUSTOM
+  # WHAT: Banner words when CLASSIFICATION is set to CUSTOM.
+  # WHY: A free-text marking should not require a code change.
+  # WHO: The person who picked CUSTOM on the pipeline form.
+  # WHERE: Read by backend/classification.py banner() with the color companion.
+  # HOW: Empty until filled; Flask uses this string as the custom label.
+  CLASSIFICATION_CUSTOM_TEXT:
+    value: ""
+  # WHAT: Banner paint when CLASSIFICATION is set to CUSTOM.
+  # WHY: Custom text still needs a swatch so WCAG ink can be chosen.
+  # WHO: The person who picked CUSTOM on the pipeline form.
+  # WHERE: Read by backend/classification.py banner() with the text companion.
+  # HOW: Hex color, with or without a hash; empty falls back to unclassified green.
+  CLASSIFICATION_CUSTOM_COLOR:
+    value: ""
 
 # WHAT: Python lint and tests.
 # WHY: Auth, copy, signup, and docs handlers must stay green before merge.

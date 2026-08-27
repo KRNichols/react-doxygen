@@ -5,7 +5,7 @@
   --docs-bar-h: 44px;
   min-height: 100vh;
   display: grid;
-  grid-template-rows: auto auto 1fr;
+  grid-template-rows: auto auto 1fr auto;
   background: var(--ink);
   color: var(--text);
 }

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
-import BrandHeader from "../components/BrandHeader.jsx";
+import BrandHeader, { Footer } from "../components/BrandHeader.jsx";
 import { useCopy } from "../copy.jsx";
 import { docsMeta, fetchDocHtml, fetchDocText, logout, me } from "../api.js";
 import {
@@ -374,6 +374,7 @@ export default function Docs() {
           ))}
         </aside>
       </div>
+      <Footer />
     </div>
   );
 }

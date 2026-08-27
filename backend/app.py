@@ -23,6 +23,7 @@ from flask import (
 )
 from flask_cors import CORS
 
+from classification import banner
 from copy_text import get_copy
 from doxygen import register_docs
 from mock_okta import store
@@ -331,14 +332,15 @@ def auth_me():
 @app.get("/api/copy")
 def api_copy():
     """
-    What: Public JSON of merged user-facing strings plus notifyEmail.
+    What: Public JSON of merged user-facing strings plus notifyEmail and classification.
     Why: The SPA renders configurable copy without a frontend rebuild.
     Who: frontend api.copy / CopyProvider; operators curling /api/copy.
     Where: GET /api/copy (unauthenticated; Vite proxies it in dev).
-    How: get_copy() (copy.json + COPY_* env, mtime cache) then attach notify_address().
+    How: Copy the catalog, attach notify_address(), then banner() as classification.
     """
-    data = get_copy()
+    data = dict(get_copy())
     data["notifyEmail"] = notify_address()
+    data["classification"] = banner()
     return jsonify(data)
 
 

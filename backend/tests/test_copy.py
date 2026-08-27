@@ -10,6 +10,8 @@ def test_copy_json_endpoint(client):
     assert data["brand"]["programName"]
     assert "notifyEmail" in data
     assert "login" in data
+    assert data["classification"]["text"] == "UNCLASSIFIED"
+    assert data["classification"]["color"] == "#007A33"
 
 
 def test_fill_replaces_placeholders():

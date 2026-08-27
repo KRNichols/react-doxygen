@@ -66,7 +66,7 @@ Current clean portal surfaces (no flyouts, no flying Hornet, no DocsHero):
 
 Only `backend/.env.example` is tracked. Secrets and mailbox dumps stay local (see `.gitignore`).
 
-Signup without `SMTP_HOST` writes a `.eml` under `backend/mailbox/`. `GET /api/copy` serves `backend/copy.json` (plus `COPY_*` overlays).
+Signup without `SMTP_HOST` writes a `.eml` under `backend/mailbox/`. `GET /api/copy` serves `backend/copy.json` (plus `COPY_*` overlays) and `classification` `{level, text, color, ink, disclaimer}`.
 
 Granted sessions read Doxygen HTML at `/docs` through `/api/docs/*`. Unset S3 vars to serve `backend/doxygen-mock/html`.
 
@@ -94,6 +94,14 @@ Copy overlays:
 
 - `COPY_<SECTION>_<KEY>` e.g. `COPY_LOGIN_TITLE`
 - `COPY_FILE` — alternate catalog path
+
+Classification banner (display-only; copy root `.env.example` to `.env`):
+
+- `CLASSIFICATION` — same key as the GitLab CI/CD dropdown. Options: `UNCLASSIFIED` (default), `CUI`, `CONFIDENTIAL`, `SECRET`, `TOP SECRET`, `ITAR`, `CUSTOM`
+- `CLASSIFICATION_TEXT` — optional override for the banner words on any level
+- `CLASSIFICATION_CUSTOM_TEXT` / `CLASSIFICATION_CUSTOM_COLOR` — used when `CLASSIFICATION=CUSTOM`
+- This is a label. It is not an ATO or a claim the demo can hold CUI or classified.
+- `GET /api/copy` How: catalog + `notifyEmail` + `classification` `{level, text, color, ink, disclaimer}`
 
 ## Checks and CI
 
