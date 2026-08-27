@@ -17,9 +17,9 @@ The portal session is the Flask cookie named `f18_session`.
 | Name | `f18_session` |
 | HttpOnly | yes |
 | SameSite | `Lax` |
-| Secure | no (this demo) |
+| Secure | yes unless `HOST` is HTTP localhost (`127.0.0.1`, `localhost`, `::1`) |
 | Lifetime | 8 hours (`PERMANENT_SESSION_LIFETIME`) after a successful login |
-| Signed with | `FLASK_SECRET` |
+| Signed with | `FLASK_SECRET` — required. A long random string. Empty, example, or default values refuse to boot. There is no in-code fallback. |
 
 `_set_session` stores `{email, name, callsign, clearance}` in the cookie
 session. `_session_user` treats the request as anonymous unless that value is
@@ -54,9 +54,11 @@ session. Denied is a **completed** login (HTTP **200** + cookie), not 401.
 | Same docs routes with a granted session | **200** (or 400/404/502 on path/source errors) | meta JSON or document bytes |
 
 Public routes that do **not** require a session: `/api/health`, `/api/copy`,
-`/api/auth/login`, `/api/auth/mock/okta`, `/api/auth/callback`,
-`/api/auth/logout`, `/api/auth/signup`, `/api/auth/signup/config`, and
-(development only) `/api/auth/signup/mailbox`.
+`/api/auth/login`, `/api/auth/callback`, `POST /api/auth/logout`,
+`/api/auth/signup`, `/api/auth/signup/config`, and (development only)
+`/api/auth/signup/mailbox`. `GET|POST /api/auth/mock/okta` is off unless
+`DEMO_LOGIN` is on (**403** when off). GET `/api/auth/logout` does not clear
+the session (404 or 405).
 
 ---
 
@@ -192,8 +194,8 @@ overlays replace individual strings before the response is built.
 - **WHAT:** Mock hosted login page, or a JSON hint for the SPA.
 - **WHY:** Local demos need an IdP without a live Okta tenant.
 - **WHO:** Browser redirect from `/api/auth/login`; SPA `GET` with `Accept: application/json`.
-- **WHERE:** Disabled when `OKTA_ISSUER` is set.
-- **HOW:** Validate `state` when present; render HTML or JSON.
+- **WHERE:** Off unless `DEMO_LOGIN` is on. Disabled when `OKTA_ISSUER` is set.
+- **HOW:** **403** when `DEMO_LOGIN` is off; validate `state` when present; render HTML or JSON.
 
 **Method:** `GET`  
 **Auth:** none  
@@ -206,6 +208,7 @@ overlays replace individual strings before the response is built.
 |---|---|
 | **200** | HTML login page, or JSON when `Accept` prefers `application/json` over `text/html` |
 | **400** | `state` was supplied and is missing or expired |
+| **403** | `DEMO_LOGIN` is off |
 | **404** | `OKTA_ISSUER` is set (mock IdP disabled) |
 
 ### Response JSON (200, JSON Accept)
@@ -227,6 +230,7 @@ overlays replace individual strings before the response is built.
 | Status | `error` |
 |---|---|
 | **400** | `Invalid or expired authorize state.` |
+| **403** | `Demo login is disabled.` |
 | **404** | `Mock IdP is disabled because OKTA_ISSUER is set.` |
 
 ---
@@ -237,9 +241,10 @@ overlays replace individual strings before the response is built.
   (JSON) or an authorization code (HTML form).
 - **WHY:** The login card’s demo-account path and the hosted form share one IdP.
 - **WHO:** `frontend` `login()`; browser form POST.
-- **WHERE:** Same URL as GET; disabled when `OKTA_ISSUER` is set.
-- **HOW:** `store.authenticate`; issue a code; JSON callers exchange immediately
-  via `_set_session`.
+- **WHERE:** Same URL as GET. Off unless `DEMO_LOGIN` is on. Disabled when
+  `OKTA_ISSUER` is set.
+- **HOW:** **403** when `DEMO_LOGIN` is off; `store.authenticate`; issue a
+  code; JSON callers exchange immediately via `_set_session`.
 
 **Method:** `POST`  
 **Auth:** none (success sets `f18_session`)  
@@ -259,6 +264,7 @@ overlays replace individual strings before the response is built.
 | **302** | HTML/form success → `/api/auth/callback?code=&state=`; form failure → back to this URL with `error=` |
 | **400** | JSON path: authorization code exchange failed |
 | **401** | JSON/form-as-JSON: invalid email or password |
+| **403** | `DEMO_LOGIN` is off |
 | **404** | `OKTA_ISSUER` is set |
 
 ### Response JSON (200)
@@ -298,6 +304,7 @@ Denied (`visitor@example.com` / `NoClearance`):
 |---|---|
 | **401** | `Invalid email or password.` |
 | **400** | `Authorization code exchange failed.` |
+| **403** | `Demo login is disabled.` |
 | **404** | `Mock IdP is disabled because OKTA_ISSUER is set.` |
 
 ---
@@ -307,8 +314,11 @@ Denied (`visitor@example.com` / `NoClearance`):
 - **WHAT:** Exchange the authorization code, set the session, redirect by clearance.
 - **WHY:** Completes the OAuth code flow after the mock IdP.
 - **WHO:** Mock IdP form redirect.
-- **WHERE:** After authorize; uses session `oauth_state` for CSRF when present.
-- **HOW:** `store.exchange_code`, `_set_session`, then `/docs` or `/denied`.
+- **WHERE:** After authorize. Session `oauth_state` is always required and must
+  match.
+- **HOW:** Compare query `state` to session `oauth_state`; mismatch or missing
+  expected state is 400. Then `store.exchange_code`, `_set_session`, `/docs`
+  or `/denied`.
 
 **Method:** `GET`  
 **Auth:** none (success sets `f18_session`)  
@@ -327,30 +337,30 @@ Denied (`visitor@example.com` / `NoClearance`):
 | `error` |
 |---|
 | `Missing code or state.` |
-| `State mismatch. Possible CSRF.` |
+| `State mismatch.` |
 | `Invalid or expired authorization code.` |
 
-The handler compares `state` to session `oauth_state` only when that session
-value is already set. A mismatch is 400. A missing expected state is not
-treated as a mismatch.
+Session `oauth_state` is always required and must match the query `state`.
+A missing expected state is a mismatch (**400**).
 
 ---
 
-## `GET|POST /api/auth/logout`
+## `POST /api/auth/logout`
 
-- **WHAT:** Clear the session and send the user to the signed-out page.
-- **WHY:** Success “Sign out” and GET logout links must end the cookie session.
-- **WHO:** `frontend` `api.logout`; GET/POST `/api/auth/logout`.
-- **WHERE:** Portal session cookie.
-- **HOW:** `session.clear()`; JSON `{ok, redirect}` or 302 `/logged-out`.
+- **WHAT:** Clear `f18_session` on POST only and send the user to the
+  signed-out page.
+- **WHY:** GET must not log anyone out.
+- **WHO:** `frontend` `api.logout`; `POST /api/auth/logout` only.
+- **WHERE:** Portal session cookie. GET is not registered.
+- **HOW:** `session.clear()`; JSON `{ok, redirect}` or 302 `/logged-out`. GET
+  does not clear the session (404 or 405).
 
-**Method:** `GET` or `POST`  
+**Method:** `POST`  
 **Auth:** none (clears `f18_session` if present)  
 **Request body:** none required
 
-JSON is returned when the request is JSON (`request.is_json`) or when the
-method is `POST` and `Accept` contains `application/json`. Otherwise the
-handler redirects.
+JSON is returned when the request is JSON (`request.is_json`) or when
+`Accept` contains `application/json`. Otherwise the handler redirects.
 
 ### Status codes
 
@@ -358,6 +368,7 @@ handler redirects.
 |---|---|
 | **200** | JSON response (see above) |
 | **302** | `Location: /logged-out` |
+| **404** or **405** | GET — session is left intact |
 
 ### Response JSON (200)
 

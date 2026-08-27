@@ -25,11 +25,11 @@ Header chrome is the mark plus program name. Footer is the mark, the demo line, 
 
 ## Screenshots
 
-Current clean portal surfaces (no flyouts, no flying Hornet, no DocsHero):
+Live captures from http://127.0.0.1:5000 at this SHA (navy BDS, DEMO_LOGIN off, default UNCLASSIFIED banners). Login is copy-left / card-right at >=960px with no email/password, no divider, no demo hints, and no folder box.
 
 ### Sign in (`/` / `/login`)
 
-![Sign-in card with Okta and demo-account fields](docs/screenshots/login.png)
+![Sign-in card, copy-left / card-right, Okta only](docs/screenshots/login.png)
 
 ### Request access (`/signup`)
 
@@ -57,7 +57,7 @@ Current clean portal surfaces (no flyouts, no flying Hornet, no DocsHero):
 
 ## How to run Flask + Vite
 
-1. Copy `backend/.env.example` to `backend/.env` if you need local overrides. Do not commit `.env`. Leave `OKTA_ISSUER` empty for the mock IdP.
+1. Copy `backend/.env.example` to `backend/.env` if you need local overrides. Do not commit `.env`. Leave `OKTA_ISSUER` empty for the mock IdP. Set a long random `FLASK_SECRET`. Flask will not boot if `FLASK_SECRET` is missing, empty, or an example/default string.
 2. Backend: `python -m pip install -r backend/requirements.txt` then `python backend/app.py` (port 5000).
 3. Frontend: in `frontend`, install dependencies and run `npm run dev` (Vite on port 5173, proxies `/api` to Flask).
 4. Optional: `npm run build` in `frontend` so Flask can serve `frontend/dist` on port 5000 alone.
@@ -76,7 +76,10 @@ Mock Okta (leave `OKTA_ISSUER` empty):
 
 - `OKTA_ISSUER` — empty = mock IdP; set only if you point at a real issuer
 - `OKTA_CLIENT_ID` / `OKTA_CLIENT_SECRET` / `OKTA_REDIRECT_URI`
-- `FLASK_SECRET` / `FLASK_DEBUG`
+- `FLASK_SECRET` — required. A long random string. Empty, example, or default values refuse to boot. There is no in-code fallback.
+- `FLASK_DEBUG`
+- `HOST` — Session cookie `f18_session` is Secure unless this is HTTP localhost.
+- `DEMO_LOGIN` — off unless `1`/`true`/`yes`. Demo email/password fields stay hidden otherwise.
 
 Signup:
 
@@ -121,9 +124,18 @@ Route-by-route request bodies, response JSON, and status codes are in
 [docs/api.md](docs/api.md).
 
 The portal session is the httpOnly `f18_session` cookie (SameSite=Lax,
-eight-hour lifetime, `Secure` off in this demo), signed with `FLASK_SECRET`.
-The SPA sends it on `/api/*` with `credentials: include`. A successful mock
-login — granted or denied — sets the cookie; `GET /api/auth/me` then returns
-`clearance: granted` or `clearance: denied`. No cookie is **401**.
-Documentation routes additionally return **403** when the session exists but
-clearance is not granted.
+eight-hour lifetime, Secure unless `HOST` is HTTP localhost), signed with
+`FLASK_SECRET`. The SPA sends it on `/api/*` with `credentials: include`. A
+successful mock login — granted or denied — sets the cookie;
+`GET /api/auth/me` then returns `clearance: granted` or `clearance: denied`.
+No cookie is **401**. Documentation routes additionally return **403** when
+the session exists but clearance is not granted.
+
+`POST /api/auth/logout` clears `f18_session` on POST only. GET must not log
+anyone out. GET does not clear the session (404 or 405).
+
+`GET /api/auth/callback`: session `oauth_state` is always required and must
+match.
+
+`GET|POST /api/auth/mock/okta` is off unless `DEMO_LOGIN` is on. **403** when
+`DEMO_LOGIN` is off.
