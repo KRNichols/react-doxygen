@@ -26,13 +26,6 @@ const STRIP_SELECTORS = [
   ".prev-next",
 ];
 
-/**
- * What: Decide whether a URL is a same-tree documentation asset or page.
- * Why: External links must stay external; S3 credentials never appear here.
- * Who: rewriteAssetUrl, rewritePageHref.
- * Where: href/src values inside proxied Doxygen HTML.
- * How: Reject blanks, hashes, mailto, and absolute http(s) off-origin.
- */
 export function isDocRelative(url) {
   if (!url || typeof url !== "string") return false;
   const trimmed = url.trim();
@@ -44,13 +37,6 @@ export function isDocRelative(url) {
   return true;
 }
 
-/**
- * What: Resolve a relative URL against the current document path.
- * Why: Doxygen pages link to siblings (class_x.html) and same-folder images.
- * Who: rewrite helpers.
- * Where: Reader article pane after a /api/docs fetch.
- * How: URL() with a fake base, then drop leading slash / query-only noise.
- */
 export function resolveAgainst(url, currentPath) {
   const basePath = currentPath && !currentPath.endsWith("/") ? currentPath : `${currentPath || "index.html"}`;
   const dir = basePath.includes("/") ? basePath.slice(0, basePath.lastIndexOf("/") + 1) : "";
@@ -62,13 +48,6 @@ export function resolveAgainst(url, currentPath) {
   }
 }
 
-/**
- * What: Point a relative asset at the auth-gated proxy.
- * Why: Images/CSS/fonts must not load from raw S3.
- * Who: rewriteDocument after parse.
- * Where: img/src, source, link[href], script[src] inside the article.
- * How: /api/docs/ + resolved relative path when the extension is an asset.
- */
 export function rewriteAssetUrl(url, currentPath) {
   if (!isDocRelative(url)) return url;
   const resolved = resolveAgainst(url, currentPath);
@@ -79,13 +58,6 @@ export function rewriteAssetUrl(url, currentPath) {
   return url;
 }
 
-/**
- * What: Point a relative HTML page at the SPA reader route.
- * Why: Clicks should stay in the fancy chrome, not load stock Doxygen.
- * Who: rewriteDocument and extractPrevNext (via pick).
- * Where: <a href> inside the injected article.
- * How: /docs/ + resolved path; preserve hash fragments.
- */
 export function rewritePageHref(url, currentPath) {
   if (!url) return url;
   if (url.startsWith("#")) return url;
@@ -101,13 +73,6 @@ export function rewritePageHref(url, currentPath) {
   return `/docs/${resolved}${hash}`;
 }
 
-/**
- * What: Remove Doxygen's own header, tabs, search, and footer from a document.
- * Why: The portal supplies BDS chrome; stock Doxygen chrome must not appear.
- * Who: extractBodyHtml.
- * Where: Parsed HTMLDocument from /api/docs/*.html.
- * How: querySelectorAll(STRIP_SELECTORS) and remove each node.
- */
 export function stripDoxygenChrome(doc) {
   STRIP_SELECTORS.forEach((sel) => {
     doc.querySelectorAll(sel).forEach((node) => node.remove());
@@ -115,13 +80,6 @@ export function stripDoxygenChrome(doc) {
   return doc;
 }
 
-/**
- * What: Pull the inner HTML of the Doxygen article body.
- * Why: Only the contents pane is injected into the reader.
- * Who: Docs.loadPage after fetchDocHtml.
- * Where: #doc-content .contents, .contents, #doc-content, else body.
- * How: Clone the best node, strip chrome, rewrite urls, drop scripts.
- */
 export function extractBodyHtml(doc, currentPath) {
   const root =
     doc.querySelector("#doc-content .contents") ||
@@ -139,13 +97,6 @@ export function extractBodyHtml(doc, currentPath) {
   return scratch.body.innerHTML;
 }
 
-/**
- * What: Rewrite every relative href/src in a parsed document.
- * Why: Injected markup must fetch via /api/docs and navigate via /docs.
- * Who: extractBodyHtml.
- * Where: a, img, source, video, link, script nodes.
- * How: rewritePageHref for anchors; rewriteAssetUrl for everything else.
- */
 export function rewriteDocument(doc, currentPath) {
   doc.querySelectorAll("a[href]").forEach((el) => {
     el.setAttribute("href", rewritePageHref(el.getAttribute("href"), currentPath));
@@ -159,26 +110,11 @@ export function rewriteDocument(doc, currentPath) {
   return doc;
 }
 
-
-/**
- * What: Remove title attributes from injected Doxygen markup.
- * Why: Native browser tooltips read as flyouts and fail the no-hover-help brief.
- * Who: extractBodyHtml after rewriteDocument.
- * Where: Every element in the cloned article document.
- * How: Walk every [title] node on the clone and drop the attribute so hover cannot open a native tooltip.
- */
 export function stripTitleAttributes(doc) {
   doc.querySelectorAll("[title]").forEach((el) => el.removeAttribute("title"));
   return doc;
 }
 
-/**
- * What: Read a human title from a Doxygen page.
- * Why: The article heading and document.title should match the page.
- * Who: Docs.loadPage.
- * Where: .title, h1, or <title>.
- * How: First non-empty text content among those selectors.
- */
 export function extractTitle(doc) {
   const node = doc.querySelector(".headertitle .title") || doc.querySelector(".title") || doc.querySelector("h1");
   if (node && node.textContent.trim()) return node.textContent.trim();
@@ -186,13 +122,6 @@ export function extractTitle(doc) {
   return t.replace(/\s*[—–-]\s*F\/A-18.*$/i, "").trim() || t.trim();
 }
 
-/**
- * What: Build a right-rail TOC from h1–h3 in the article.
- * Why: Long Doxygen pages need in-page jump links.
- * Who: Docs page after HTML injection.
- * Where: Headings inside the extracted body (or the original document).
- * How: Assign ids when missing; return {id, text, level}[].
- */
 export function extractToc(container) {
   if (!container) return [];
   const nodes = container.querySelectorAll("h1, h2, h3");
@@ -208,21 +137,7 @@ export function extractToc(container) {
   return items;
 }
 
-/**
- * What: Find prev/next links on a Doxygen page.
- * Why: The reader shows pager controls when the tree or page provides them.
- * Who: Docs.loadPage; fallback is sidebar order in Docs.jsx.
- * Where: rel=prev/next, .prev/.next, or .prev-next anchors.
- * How: Collect href+label pairs after rewritePageHref.
- */
 export function extractPrevNext(doc, currentPath) {
-  /**
-   * What: Pull one prev/next anchor into {href, label} or null.
-   * Why: Doxygen marks pager links with rel=prev/next or .prev/.next classes.
-   * Who: extractPrevNext for the prev and next slots.
-   * Where: Parsed Doxygen HTMLDocument after rewritePageHref.
-   * How: querySelector the selector, rewrite the href, skip missing or hash-only anchors.
-   */
   const pick = (sel) => {
     const el = doc.querySelector(sel);
     if (!el) return null;
@@ -237,13 +152,6 @@ export function extractPrevNext(doc, currentPath) {
   };
 }
 
-/**
- * What: Collect module/class/file links from a Doxygen index-like page.
- * Why: Fallback sidebar when navtree.js is missing.
- * Who: buildSidebar.
- * Where: #navrow1, .tablist, .directory a, .contents a[href$=.html].
- * How: Unique href/label pairs that look like documentation pages.
- */
 export function extractIndexLinks(doc) {
   const seen = new Set();
   const items = [];
@@ -260,13 +168,6 @@ export function extractIndexLinks(doc) {
   return items;
 }
 
-/**
- * What: Parse Doxygen navtree.js into a nested array.
- * Why: navtree is the richest module/class/file outline when present.
- * Who: buildSidebar after fetch /api/docs/navtree.js.
- * Where: `var NAVTREE = [ ... ];`
- * How: Slice the assignment and evaluate as a JS expression (our own proxy).
- */
 export function parseNavtree(text) {
   if (!text) return [];
   const match = text.match(/var\s+NAVTREE\s*=\s*(\[[\s\S]*?\]);/);
@@ -280,13 +181,6 @@ export function parseNavtree(text) {
   }
 }
 
-/**
- * What: Convert a NAVTREE node list into sidebar items.
- * Why: The left rail needs label, href, and optional children.
- * Who: buildSidebar.
- * Where: Parsed navtree.js arrays of [label, url, children|id|null].
- * How: Recurse; skip empty urls; treat string third slots as no children.
- */
 export function flattenNavtree(tree, depth = 0) {
   if (!Array.isArray(tree)) return [];
   return tree
@@ -302,13 +196,6 @@ export function flattenNavtree(tree, depth = 0) {
     .filter(Boolean);
 }
 
-/**
- * What: Build the left-rail tree from navtree, else from index.html links.
- * Why: Real Doxygen exports vary; the reader should still have a sidebar.
- * Who: Docs.jsx on first load.
- * Where: navtree.js plus the proxied index document.
- * How: Prefer flattenNavtree; group leftover index links by filename.
- */
 export function buildSidebar(navtree, indexDoc) {
   const fromTree = flattenNavtree(navtree);
   if (fromTree.length) {
@@ -331,23 +218,9 @@ export function buildSidebar(navtree, indexDoc) {
     .map(([label, children]) => ({ label, href: children[0]?.href || "", children }));
 }
 
-/**
- * What: Filter sidebar items by a case-insensitive query.
- * Why: In-reader search should shrink the outline as the user types.
- * Who: Docs.jsx search box.
- * Where: Client-side only; no extra API.
- * How: Keep a node if its label or any descendant matches.
- */
 export function filterSidebar(items, query) {
   const q = (query || "").trim().toLowerCase();
   if (!q) return items || [];
-  /**
-   * What: Recurse the sidebar tree keeping nodes that match the query.
-   * Why: A parent must stay visible when only a descendant matches.
-   * Who: filterSidebar after the query is non-empty.
-   * Where: Client-side outline; no extra API.
-   * How: Depth-first: keep a node if its label matches or any child is kept.
-   */
   const walk = (nodes) => {
     const out = [];
     (nodes || []).forEach((node) => {
@@ -361,13 +234,6 @@ export function filterSidebar(items, query) {
   return walk(items);
 }
 
-/**
- * What: Wrap query matches in <mark class="docs-hl"> inside an element.
- * Why: Search should highlight hits in the article as well as the sidebar.
- * Who: Docs.jsx when the search box is non-empty.
- * Where: Text nodes under the article root (skip script/style).
- * How: Split text nodes with a case-insensitive RegExp; honor empty query.
- */
 export function highlightText(root, query) {
   if (!root) return;
   const marks = root.querySelectorAll("mark.docs-hl");
@@ -386,13 +252,6 @@ export function highlightText(root, query) {
   const re = new RegExp(escaped, "gi");
   const skip = new Set(["SCRIPT", "STYLE", "MARK"]);
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
-    /**
-     * What: TreeWalker filter that accepts text nodes containing the query.
-     * Why: highlightText must skip script/style/mark and empty text.
-     * Who: document.createTreeWalker inside highlightText.
-     * Where: Text nodes under the article root.
-     * How: Reject skipped parents; accept when the case-insensitive regexp hits.
-     */
     acceptNode(node) {
       const p = node.parentElement;
       if (!p || skip.has(p.tagName)) return NodeFilter.FILTER_REJECT;
@@ -427,22 +286,8 @@ export function highlightText(root, query) {
   });
 }
 
-/**
- * What: Flatten sidebar items into a prev/next sequence.
- * Why: Pager fallback when the HTML has no rel=prev/next.
- * Who: Docs.jsx pager.
- * Where: Visible sidebar tree (unfiltered).
- * How: Depth-first push of nodes that have an href.
- */
 export function flattenSidebarHrefs(items) {
   const out = [];
-  /**
-   * What: Depth-first collect of sidebar nodes that have an href.
-   * Why: The pager needs a linear order matching the visible tree.
-   * Who: flattenSidebarHrefs.
-   * Where: Unfiltered sidebar items.
-   * How: Pre-order visit: emit the node when it has a page href, then walk its children.
-   */
   const walk = (nodes) => {
     (nodes || []).forEach((node) => {
       if (node.href) out.push({ href: node.href, label: node.label });
@@ -453,13 +298,6 @@ export function flattenSidebarHrefs(items) {
   return out;
 }
 
-/**
- * What: Parse a fetched HTML string into a document.
- * Why: DOMParser is the only safe way to query Doxygen structure.
- * Who: Docs.loadPage and Docs.loadTree.
- * Where: Browser; string from /api/docs/*.html.
- * How: Feed the fetched markup into the browser HTML parser so extractors can querySelector.
- */
 export function parseHtml(html) {
   return new DOMParser().parseFromString(html || "", "text/html");
 }
