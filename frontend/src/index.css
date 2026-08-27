@@ -82,7 +82,6 @@ a { color: inherit; }
 .horizon,
 .atmosphere-cloud { display: none; }
 
-/* Header — mark + program name only */
 .site-header {
   position: relative;
   z-index: 20;
@@ -132,8 +131,6 @@ a { color: inherit; }
   white-space: nowrap;
 }
 
-
-/* Hero */
 .main {
   position: relative;
   z-index: 3;
@@ -190,7 +187,6 @@ h2 {
   color: #fff;
 }
 
-/* Dark product-page cards — navy, sharp, not glass */
 .card {
   width: min(420px, 94vw);
   background: rgba(6, 21, 40, 0.92);
@@ -244,7 +240,7 @@ input:focus {
   cursor: pointer;
   text-decoration: none;
 }
-.btn::after { content: "›"; font-size: 1.15rem; line-height: 0; font-weight: 400; }
+.btn::after { content: "\u203a"; font-size: 1.15rem; line-height: 0; font-weight: 400; }
 .btn:hover { background: #00287a; border-color: #00287a; }
 .btn:disabled { opacity: 0.6; cursor: wait; }
 .btn.ghost {
@@ -326,7 +322,6 @@ input:focus {
 .ok { color: var(--ok); }
 .bad { color: var(--bad); }
 
-/* Footer — navy gradient + Earth */
 .site-footer {
   position: relative;
   z-index: 4;
@@ -419,7 +414,6 @@ input:focus-visible,
 a.btn {
   text-decoration: none;
 }
-
 
 .footer-simple p { color: #d3d7da; }
 .footer-simple .footer-copy { color: #c5ced6; }
