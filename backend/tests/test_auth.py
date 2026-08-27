@@ -1,3 +1,4 @@
+
 def test_bad_password_is_401(client):
     res = client.post(
         "/api/auth/mock/okta",
