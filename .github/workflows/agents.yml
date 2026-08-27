@@ -1,0 +1,40 @@
+name: Agents
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  overlay:
+    name: overlay
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-dev.txt
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install backend tools
+        run: python -m pip install -r backend/requirements.txt -r backend/requirements-dev.txt
+      - name: Loop chrome gates
+        run: python3 scripts/check-agents.py
+      - name: Product contract
+        run: make ci
+        env:
+          CI: "true"
+          PYTHON: python
+          RUFF: ruff
