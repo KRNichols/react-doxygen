@@ -402,6 +402,13 @@ input:focus-visible,
   outline-offset: 3px;
 }
 
+/*
+ * WHAT: Two-column login layout at 960px and wider.
+ * WHY: Hero copy and the sign-in card sit side by side on desktop, not stacked.
+ * WHO: The / and /login stage when data-scene is login.
+ * WHERE: frontend/src/index.css, this min-width 960px block only.
+ * HOW: Two-column grid, hero start, card end, centered 1180px shell.
+ */
 @media (min-width: 960px) {
   .stage[data-scene="login"] .main {
     grid-template-columns: 1fr min(420px, 38vw);

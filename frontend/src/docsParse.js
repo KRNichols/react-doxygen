@@ -120,7 +120,7 @@ export function stripDoxygenChrome(doc) {
  * Why: Docs.jsx injects that markup into the reader pane, not the full page.
  * Who: Docs loadPage after fetchDocHtml.
  * Where: frontend/src/docsParse.js, consumed only by the granted /docs route.
- * How: Clone .contents, strip chrome, rewrite URLs, drop title attrs and scripts.
+ * How: Clone .contents, strip chrome, rewrite URLs, drop title attrs, scripts, and unsafe attrs.
  */
 export function extractBodyHtml(doc, currentPath) {
   const root =
@@ -136,6 +136,7 @@ export function extractBodyHtml(doc, currentPath) {
   rewriteDocument(scratch, currentPath);
   stripTitleAttributes(scratch);
   scratch.querySelectorAll("script").forEach((n) => n.remove());
+  dropUnsafeAttrs(scratch);
   return scratch.body.innerHTML;
 }
 
@@ -168,6 +169,27 @@ export function rewriteDocument(doc, currentPath) {
  */
 export function stripTitleAttributes(doc) {
   doc.querySelectorAll("[title]").forEach((el) => el.removeAttribute("title"));
+  return doc;
+}
+
+/**
+ * What: Remove on* event attributes and javascript: URLs from a document.
+ * Why: Proxied Doxygen HTML must not run injected handlers in the reader.
+ * Who: extractBodyHtml after script tags are removed.
+ * Where: Scratch document that becomes the article innerHTML.
+ * How: Walk every element and drop attributes that start with on or values that start with javascript:.
+ */
+export function dropUnsafeAttrs(doc) {
+  const nodes = doc.querySelectorAll("*");
+  nodes.forEach((el) => {
+    [...el.attributes].forEach((attr) => {
+      const name = attr.name || "";
+      const value = String(attr.value || "").trim();
+      if (name.toLowerCase().startsWith("on") || value.toLowerCase().startsWith("javascript:")) {
+        el.removeAttribute(name);
+      }
+    });
+  });
   return doc;
 }
 

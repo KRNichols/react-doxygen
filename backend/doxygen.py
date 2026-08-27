@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import mimetypes
 import os
+import re
 from pathlib import Path
 from typing import Callable
 from urllib.error import HTTPError, URLError
@@ -52,6 +53,27 @@ MIME_FALLBACK = {
 
 MAX_BYTES = 15 * 1024 * 1024
 DEFAULT_TITLE = "F/A-18 Mission Software"
+_SCRIPT_RE = re.compile(r"(?is)<script\b[^>]*>.*?</script\s*>")
+_ON_ATTR_RE = re.compile(r"""(?is)\s+on[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)""")
+_JS_URL_RE = re.compile(
+    r"""(?is)\s+(?:href|src|action|xlink:href)\s*=\s*(?:"\s*javascript:[^"]*"|'\s*javascript:[^']*'|javascript:[^\s>]+)"""
+)
+
+
+def sanitize_html(raw: str | bytes) -> str | bytes:
+    """
+    What: Strip script tags, on* handlers, and javascript: URLs from HTML.
+    Why: Proxied Doxygen pages must not run injected script in the reader.
+    Who: docs_proxy when the object Content-Type contains html.
+    Where: HTML bytes fetched from mock, public URL, or S3.
+    How: Drop script elements, attributes that start with on, and javascript: href/src/action values.
+    """
+    was_bytes = isinstance(raw, (bytes, bytearray))
+    text = raw.decode("utf-8", "replace") if was_bytes else str(raw or "")
+    text = _SCRIPT_RE.sub("", text)
+    text = _ON_ATTR_RE.sub("", text)
+    text = _JS_URL_RE.sub("", text)
+    return text.encode("utf-8") if was_bytes else text
 
 
 def _env(name: str, default: str = "") -> str:
@@ -353,7 +375,7 @@ def register_docs(app, session_user_fn: Callable[[], dict | None]) -> None:
         Why: The browser must never talk to S3 directly or see AWS keys.
         Who: The fancy reader (pages + rewritten asset URLs).
         Where: GET /api/docs/<path>; default index.html; mock if unconfigured.
-        How: require_granted, normalize_doc_path, fetch_doc, Response with MIME.
+        How: require_granted, normalize_doc_path, fetch_doc, sanitize HTML, Response with MIME.
         """
         if doc_path == "meta":
             return docs_meta()
@@ -370,6 +392,8 @@ def register_docs(app, session_user_fn: Callable[[], dict | None]) -> None:
         if found is None:
             return jsonify({"error": "Document not found."}), 404
         data, ctype = found
+        if "html" in (ctype or "").lower():
+            data = sanitize_html(data)
         return Response(
             data,
             mimetype=ctype,

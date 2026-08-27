@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { copy as fetchCopy } from "./api.js";
 
 export const FALLBACK = {
+  "demoLogin": false,
   "brand": {
     "programName": "F/A-18 Super Hornet",
     "headerAria": "Boeing F/A-18 Super Hornet home",
@@ -170,7 +171,7 @@ export function fill(template, vars = {}) {
   return String(template).replace(/\{(\w+)\}/g, replaceToken);
 }
 
-const CopyContext = createContext({ ...FALLBACK, notifyEmail: "" });
+const CopyContext = createContext({ ...FALLBACK, notifyEmail: "", demoLogin: false });
 
 /**
  * What: Load /api/copy once and provide the merged tree to the app.
@@ -180,14 +181,14 @@ const CopyContext = createContext({ ...FALLBACK, notifyEmail: "" });
  * How: Start with FALLBACK; deepMerge the response; set document.title.
  */
 export function CopyProvider({ children }) {
-  const [copy, setCopy] = useState(() => ({ ...FALLBACK, notifyEmail: "" }));
+  const [copy, setCopy] = useState(() => ({ ...FALLBACK, notifyEmail: "", demoLogin: false }));
 
   useEffect(() => {
     let cancelled = false;
     fetchCopy()
       .then((data) => {
         if (cancelled) return;
-        setCopy(deepMerge({ ...FALLBACK, notifyEmail: "" }, data));
+        setCopy(deepMerge({ ...FALLBACK, notifyEmail: "", demoLogin: false }, data));
       })
       .catch(() => {});
     return () => {
