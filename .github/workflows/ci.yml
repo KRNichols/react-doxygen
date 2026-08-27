@@ -1,4 +1,8 @@
-# Product CI. Both GitHub Actions and GitLab CI call scripts/pipeline.sh.
+# WHAT: Product CI on GitHub Actions. Four real jobs. No empty waiter job.
+# WHY: A job that only prints all-green wastes a runner and can hide a red gate.
+# WHO: Anyone who pushes or opens a pull request against main.
+# WHERE: .github/workflows/ci.yml on ubuntu-latest.
+# HOW: Each job checks out the tree, sets up one toolchain, and calls one make target.
 name: CI
 
 on:
@@ -7,14 +11,29 @@ on:
   pull_request:
     branches: [main]
 
+# WHAT: One in-flight run per workflow and branch.
+# WHY: A newer PR commit should stop the old run. A push to main must finish.
+# WHO: The GitHub concurrency engine for this workflow.
+# WHERE: Every CI run created from this file.
+# HOW: Group by workflow name plus ref. Cancel only when the event is a pull_request.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+# WHAT: Least-privilege token for these jobs.
+# WHY: The jobs only read the repo. They do not publish or write extra checks.
+# WHO: Every job below.
+# WHERE: The GITHUB_TOKEN for this workflow.
+# HOW: contents: read only.
 permissions:
   contents: read
 
 jobs:
+  # WHAT: Python lint and tests.
+  # WHY: Auth, copy, signup, and docs handlers must stay green before merge.
+  # WHO: The hosted runner after a push or pull request.
+  # WHERE: backend Python and backend/tests through make backend.
+  # HOW: Python 3.12 with a pip cache, install both requirement files, then ruff plus pytest.
   backend:
     name: backend
     runs-on: ubuntu-latest
@@ -36,6 +55,11 @@ jobs:
           PYTHON: python
           RUFF: ruff
 
+  # WHAT: JavaScript lint and unit tests.
+  # WHY: Routes and copy helpers must stay green before merge.
+  # WHO: The hosted runner after a push or pull request.
+  # WHERE: The frontend tree through its make target.
+  # HOW: Cached Node install, then lint and unit tests. No production bundle.
   frontend:
     name: frontend
     runs-on: ubuntu-latest
@@ -47,11 +71,16 @@ jobs:
           node-version: "22"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - name: ESLint, Vitest, production build
+      - name: ESLint + Vitest
         run: make frontend
         env:
           CI: "true"
 
+  # WHAT: Five-part comment gate and unused-code scan.
+  # WHY: New functions need layman comments. Leftover imports should not land.
+  # WHO: The hosted runner after a push or pull request.
+  # WHERE: First-party trees through the quality make target.
+  # HOW: Comment checker --all plus unused-import and unused-variable rules.
   quality:
     name: quality
     runs-on: ubuntu-latest
@@ -72,3 +101,24 @@ jobs:
         env:
           PYTHON: python
           RUFF: ruff
+
+  # WHAT: Production frontend bundle.
+  # WHY: Flask serves the built files. A broken bundle must fail here.
+  # WHO: The hosted runner after a push or pull request.
+  # WHERE: The frontend tree through the build make target.
+  # HOW: Cached Node install, then the production bundler only.
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Production bundle
+        run: make build
+        env:
+          CI: "true"

@@ -1,3 +1,8 @@
+# WHAT: Docs-writer loop overlay on top of product CI. Does not replace ci.yml.
+# WHY: Chrome locks need their own gate so product CI stays a product gate.
+# WHO: Anyone who pushes or opens a pull request against main.
+# WHERE: .github/workflows/agents.yml. Local twin is make agents then make ci.
+# HOW: Run the chrome-gate make target, then the portable product contract make ci.
 name: Agents
 on:
   push:
@@ -5,14 +10,29 @@ on:
   pull_request:
     branches: [main]
 
+# WHAT: One in-flight overlay run per workflow and branch.
+# WHY: A newer PR commit should stop the old overlay. A push to main must finish.
+# WHO: The GitHub concurrency engine for this workflow.
+# WHERE: Every Agents run created from this file.
+# HOW: Group by workflow name plus ref. Cancel only when the event is a pull_request.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+# WHAT: Least-privilege token for the overlay.
+# WHY: The job only reads source and runs local scripts.
+# WHO: The overlay job below.
+# WHERE: The GITHUB_TOKEN for this workflow.
+# HOW: contents: read only.
 permissions:
   contents: read
 
 jobs:
+  # WHAT: Chrome locks plus the full product contract.
+  # WHY: Overlay must not replace ci.yml, but it must still prove make ci is green.
+  # WHO: The hosted runner after a push or pull request.
+  # WHERE: The agents make target, then the ci make target.
+  # HOW: Python and Node toolchains, chrome gates, then make ci.
   overlay:
     name: overlay
     runs-on: ubuntu-latest
@@ -29,10 +49,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
       - name: Install backend tools
         run: python -m pip install -r backend/requirements.txt -r backend/requirements-dev.txt
       - name: Loop chrome gates
-        run: python3 scripts/check-agents.py
+        run: make agents
       - name: Product contract
         run: make ci
         env:

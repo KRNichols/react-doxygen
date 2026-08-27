@@ -1,23 +1,47 @@
-# GitLab CI. GitHub Actions YAML is not drop-in here.
-# Portable contract: make ci / scripts/pipeline.sh
-# Does not register a runner or invent a GitLab remote.
+# WHAT: GitLab copy of the same product, security, and overlay gates.
+# WHY: GitHub YAML does not run here. The make targets stay identical.
+# WHO: A GitLab runner on default-branch pushes and merge requests.
+# WHERE: .gitlab-ci.yml. No GitLab remote is invented.
+# HOW: Each job calls the same make target as the matching GitHub job.
 
 workflow:
+  # WHAT: When this file starts a pipeline, and when a newer commit may cancel it.
+  # WHY: Match GitHub: cancel in-flight work only on merge requests, never on main.
+  # WHO: GitLab pipeline scheduler.
+  # WHERE: Every pipeline created from this file.
+  # HOW: Run on MR events and the default branch. conservative cancel = MR jobs only.
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  auto_cancel:
+    on_new_commit: conservative
 
+# WHAT: Named slices that match GitHub job names.
+# WHY: Readers should see the same words on both hosts.
+# WHO: GitLab scheduler when it orders jobs.
+# WHERE: This file. build shares the frontend stage so it can run beside lint/tests.
+# HOW: Four product stages plus security. Overlay lives in quality beside comments.
 stages:
   - backend
   - frontend
   - quality
   - security
 
+# WHAT: Shared tool names for Python jobs.
+# WHY: make backend and make quality look for PYTHON and RUFF in the environment.
+# WHO: Every job that calls a Python make target.
+# WHERE: This file default variables.
+# HOW: Point PYTHON and RUFF at the image binaries. Cache pip under the project dir.
 variables:
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
   PYTHON: python
   RUFF: ruff
 
+# WHAT: Python lint and tests.
+# WHY: Auth, copy, signup, and docs handlers must stay green before merge.
+# WHO: A GitLab runner after a default-branch push or merge request.
+# WHERE: backend Python through make backend.
+# HOW: python:3.12 image, pip cache, install both requirement files, then make backend.
 backend:
   stage: backend
   image: python:3.12
@@ -30,6 +54,11 @@ backend:
   script:
     - make backend
 
+# WHAT: JavaScript lint and unit tests.
+# WHY: Routes and copy helpers must stay green before merge.
+# WHO: A GitLab runner after a default-branch push or merge request.
+# WHERE: frontend tree through make frontend.
+# HOW: node:22 image, node_modules cache, then lint and unit tests. No production bundle.
 frontend:
   stage: frontend
   image: node:22
@@ -42,6 +71,11 @@ frontend:
   script:
     - make frontend
 
+# WHAT: Five-part comment gate and unused-code scan.
+# WHY: New functions need layman comments. Leftover imports should not land.
+# WHO: A GitLab runner after a default-branch push or merge request.
+# WHERE: First-party trees through make quality.
+# HOW: python:3.12 image, pip cache, then comments --all plus unused-name rules.
 quality:
   stage: quality
   image: python:3.12
@@ -54,6 +88,11 @@ quality:
   script:
     - make quality
 
+# WHAT: Python package advisory scan.
+# WHY: The API stack must not ship a known-bad wheel.
+# WHO: A GitLab runner after a default-branch push or merge request.
+# WHERE: backend/requirements.txt through make security-pip.
+# HOW: Install the auditor, then the same script GitHub and a laptop use.
 security:pip:
   stage: security
   image: python:3.12
@@ -66,6 +105,11 @@ security:pip:
   script:
     - make security-pip
 
+# WHAT: Production Node advisory scan.
+# WHY: The shipped UI must not depend on a high-severity package.
+# WHO: A GitLab runner after a default-branch push or merge request.
+# WHERE: frontend production tree through make security-node.
+# HOW: node:22 image, then production-only high-severity audit.
 security:node:
   stage: security
   image: node:22
@@ -75,3 +119,31 @@ security:node:
       - frontend/node_modules
   script:
     - make security-node
+
+# WHAT: Production frontend bundle.
+# WHY: Flask serves the built files. A broken bundle must fail here.
+# WHO: A GitLab runner after a default-branch push or merge request.
+# WHERE: frontend tree through make build.
+# HOW: node:22 image, then the production bundler only. Not a second frontend job.
+build:
+  stage: frontend
+  image: node:22
+  cache:
+    key: node-22
+    paths:
+      - frontend/node_modules
+  variables:
+    CI: "true"
+  script:
+    - make build
+
+# WHAT: Docs-writer loop chrome gates.
+# WHY: Overlay locks stay in-repo and do not replace product CI.
+# WHO: A GitLab runner after a default-branch push or merge request.
+# WHERE: make agents (scripts/check-agents.py).
+# HOW: python:3.12 image. GitHub overlay also runs make ci because it is a separate workflow.
+agents:
+  stage: quality
+  image: python:3.12
+  script:
+    - make agents

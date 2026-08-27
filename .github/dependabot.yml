@@ -1,10 +1,34 @@
+# WHAT: Weekly library and action update PRs.
+# WHY: Advisories and stale pins should not wait for a human to notice.
+# WHO: The hosted update bot.
+# WHERE: backend Python, frontend Node, and root workflows.
+# HOW: One PR stream per ecosystem, weekly.
 version: 2
 updates:
+  # WHAT: Python library bumps.
+  # WHY: The API stack should pick up security fixes.
+  # WHO: The hosted update bot, weekly.
+  # WHERE: backend pip directory.
+  # HOW: Open a PR when a requirement pin can move.
   - package-ecosystem: pip
     directory: /backend
     schedule:
       interval: weekly
+  # WHAT: Node library bumps.
+  # WHY: The UI stack should pick up security fixes.
+  # WHO: The hosted update bot, weekly.
+  # WHERE: frontend package directory.
+  # HOW: Open a PR when a lockfile pin can move.
   - package-ecosystem: npm
     directory: /frontend
+    schedule:
+      interval: weekly
+  # WHAT: Hosted workflow action bumps.
+  # WHY: Checkout and setup actions should not sit on old tags.
+  # WHO: The hosted update bot, weekly.
+  # WHERE: repo root workflow files.
+  # HOW: Open a PR when an action pin can move.
+  - package-ecosystem: github-actions
+    directory: /
     schedule:
       interval: weekly
