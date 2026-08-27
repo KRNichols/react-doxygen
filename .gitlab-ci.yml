@@ -1,11 +1,20 @@
-# GitLab CI. GitHub Actions YAML is not drop-in here.
-# Portable contract: make ci / scripts/pipeline.sh
-# Does not register a runner or invent a GitLab remote.
+# WHAT: GitLab copy of the same product, security, and overlay gates.
+# WHY: GitHub YAML does not run here. The make targets stay identical.
+# WHO: A GitLab runner on default-branch pushes and merge requests.
+# WHERE: .gitlab-ci.yml. No GitLab remote is invented.
+# HOW: Each job calls the same make target as the matching GitHub job.
 
 workflow:
+  # WHAT: When this file starts a pipeline, and when a newer commit may cancel it.
+  # WHY: Match GitHub: cancel in-flight work only on merge requests, never on main.
+  # WHO: GitLab pipeline scheduler.
+  # WHERE: Every pipeline created from this file.
+  # HOW: Run on MR events and the default branch. conservative cancel = MR jobs only.
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  auto_cancel:
+    on_new_commit: conservative
 
 stages:
   - backend
@@ -75,3 +84,21 @@ security:node:
       - frontend/node_modules
   script:
     - make security-node
+
+build:
+  stage: frontend
+  image: node:22
+  cache:
+    key: node-22
+    paths:
+      - frontend/node_modules
+  variables:
+    CI: "true"
+  script:
+    - make build
+
+agents:
+  stage: quality
+  image: python:3.12
+  script:
+    - make agents

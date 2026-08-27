@@ -1,5 +1,11 @@
 #!/bin/sh
-# Portable contract for GitHub Actions and GitLab CI.
+# WHAT: Portable product contract for GitHub, GitLab, and a laptop.
+# WHY: Hosted YAML must not invent a different set of gates than make ci.
+# WHO: make ci, GitHub Actions, GitLab CI, and the agents overlay.
+# WHERE: Repo root. First argument is the slice name (default ci).
+# HOW: Each slice calls the same script the matching make target calls.
+#      ci is quality plus backend plus frontend plus build. No empty waiter.
+
 set -e
 ROOT=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
 cd "$ROOT"
@@ -21,6 +27,7 @@ case "$slice" in
     sh scripts/check.sh deadcode
     sh scripts/run-backend.sh
     sh scripts/run-frontend.sh
+    sh scripts/run-build.sh
     ;;
   *) echo "usage: $0 [ci|quality|backend|frontend|build|security]" >&2; exit 2 ;;
 esac

@@ -1,8 +1,9 @@
-# Dependency advisories. Kept out of the product CI gate so advisory
-# noise does not hide a red ruff/pytest/eslint run.
-# pip-audit has no high-only severity filter; it fails this workflow
-# on any reported advisory (continue-on-error: false).
-# Node audit is limited to production deps at high+ (--audit-level=high).
+# WHAT: Dependency advisory scans, kept off the product CI gate.
+# WHY: Advisory noise must not hide a red lint or test run.
+# WHO: Anyone who pushes or opens a pull request against main, plus a Monday timer.
+# WHERE: .github/workflows/security.yml. Local twins are the security make targets.
+# HOW: Two jobs call the same make targets GitLab uses. Python scan fails on any advisory.
+#      Node scan is production packages at high severity and above.
 name: Security
 
 on:
@@ -10,17 +11,37 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+# WHAT: Weekly advisory sweep on Monday at 09:00 UTC.
+# WHY: A quiet week of no pushes should still see new advisories.
+# WHO: GitHub scheduled workflow trigger.
+# WHERE: This workflow only. Product CI is not on a timer.
+# HOW: cron 0 9 * * 1.
   schedule:
     - cron: "0 9 * * 1"
 
+# WHAT: One in-flight security run per workflow and branch.
+# WHY: A newer PR commit should stop the old audit. Main and the timer should finish.
+# WHO: The GitHub concurrency engine for this workflow.
+# WHERE: Every security run created from this file.
+# HOW: Group by workflow name plus ref. Cancel only when the event is a pull_request.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+# WHAT: Least-privilege token for these jobs.
+# WHY: The jobs only read lockfiles and requirement lists.
+# WHO: Both audit jobs below.
+# WHERE: The GITHUB_TOKEN for this workflow.
+# HOW: contents: read only.
 permissions:
   contents: read
 
 jobs:
+  # WHAT: Python package advisory scan.
+  # WHY: The API stack must not ship a known-bad wheel.
+  # WHO: The hosted runner after a push, pull request, or the Monday timer.
+  # WHERE: backend/requirements.txt through the security-pip make target.
+  # HOW: Install the auditor, then run the same script GitLab and a laptop use.
   python-audit:
     name: pip-audit
     runs-on: ubuntu-latest
@@ -37,9 +58,15 @@ jobs:
       - name: Install pip-audit
         run: python -m pip install pip-audit
       - name: Audit backend/requirements.txt
-        continue-on-error: false
-        run: python -m pip_audit -r backend/requirements.txt
+        run: make security-pip
+        env:
+          PYTHON: python
 
+  # WHAT: Production Node advisory scan.
+  # WHY: The shipped UI must not depend on a high-severity package.
+  # WHO: The hosted runner after a push, pull request, or the Monday timer.
+  # WHERE: frontend tree through the security-node make target.
+  # HOW: Cached Node install, then production-only high-severity audit.
   node-audit:
     name: node-audit
     runs-on: ubuntu-latest
@@ -51,10 +78,7 @@ jobs:
           node-version: "22"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - name: Install production tree
-        working-directory: frontend
-        run: npm ci --omit=dev
       - name: Audit production high+
-        continue-on-error: false
-        working-directory: frontend
-        run: npm audit --omit=dev --audit-level=high
+        run: make security-node
+        env:
+          CI: "true"

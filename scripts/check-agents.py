@@ -6,6 +6,13 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 
 def fail(msg):
+    """
+    What: Stop the overlay and print the miss.
+    Why: A chrome lock miss must fail the job, not print and continue.
+    Who: main() after each lock check.
+    Where: Overlay stderr, then process exit 1.
+    How: Write the miss to stderr and exit with status 1.
+    """
     print("agents overlay FAIL:", msg, file=sys.stderr)
     sys.exit(1)
 
@@ -19,15 +26,36 @@ FORBIDDEN = [
 ]
 
 def src_files():
+    """
+    What: Walk first-party frontend source files.
+    Why: Overlay scans must not peek at tests or vendor trees.
+    Who: src_has() when it looks for a forbidden string.
+    Where: frontend/src with js, jsx, and css suffixes.
+    How: Yield each matching path, skipping files whose names contain .test.
+    """
     src = ROOT / "frontend" / "src"
     for path in src.rglob("*"):
         if path.suffix in {".js", ".jsx", ".css"} and ".test." not in path.name:
             yield path
 
 def src_has(needle):
+    """
+    What: True when any first-party frontend file contains needle.
+    Why: Chrome locks are strings in source, not only missing files.
+    Who: main() for data-flyout and DocsHero.
+    Where: The files from src_files().
+    How: Read each file as UTF-8 and stop at the first hit.
+    """
     return any(needle in path.read_text(encoding="utf-8") for path in src_files())
 
 def main():
+    """
+    What: Run every overlay chrome lock and exit 1 on the first miss.
+    Why: Product CI does not own Hornet, flyout, hero, or boxed-heading rules.
+    Who: make agents and the hosted Agents overlay.
+    Where: Forbidden paths plus App.jsx, docsParse.js, and Docs.css.
+    How: Missing-file checks, then string scans, then focus and title rules.
+    """
     for rel in FORBIDDEN:
         if (ROOT / rel).exists():
             fail("forbidden file " + rel)

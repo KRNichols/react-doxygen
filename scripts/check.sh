@@ -1,4 +1,9 @@
 #!/bin/sh
+# WHAT: Local quality slices: lint, comments, unused code, and the fast check.
+# WHY: Hosted jobs and make targets must call one script so the gates match.
+# WHO: make check/lint/comments/deadcode/quality and pipeline.sh.
+# WHERE: scripts/check.sh from the repo root.
+# HOW: Prefer the local virtualenv tools. Each named slice is a function below.
 set -e
 ROOT=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
 cd "$ROOT"

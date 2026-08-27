@@ -1,4 +1,9 @@
 #!/bin/sh
+# WHAT: Python lint and tests with a coverage floor.
+# WHY: Auth, copy, signup, and docs handlers must stay green.
+# WHO: make backend, pipeline.sh backend, hosted backend job.
+# WHERE: backend Python and backend/tests
+# HOW: Prefer the local virtualenv tools, then lint, then tests with coverage.
 set -e
 ROOT=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
 cd "$ROOT"
