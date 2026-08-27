@@ -71,6 +71,8 @@ Copy overlays:
 
 GitHub Actions (`.github/workflows/ci.yml`) is the hosted pipeline. GitLab CI (`.gitlab-ci.yml`) uses the same contract — both call `make ci` / the pipeline script. A separate security workflow runs pip-audit and production high+ Node audit so advisory noise does not fail the product gate.
 
+Actions: https://github.com/KRNichols/react-doxygen/actions
+
 ## API
 
 - `GET /api/health`
