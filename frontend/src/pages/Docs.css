@@ -73,11 +73,21 @@
   outline-offset: 3px;
 }
 
+/*
+ * WHAT: Three-column docs reader with no outer painted frame.
+ * WHY: The navy shell must sit flush — no folder box, border, or drop shadow.
+ * WHO: /docs Doxygen reader (Docs.jsx).
+ * WHERE: frontend/src/pages/Docs.css — .docs-shell.
+ * HOW: outline none; border 0; box-shadow none on the three-column grid.
+ */
 .docs-shell {
   display: grid;
   grid-template-columns: minmax(200px, 248px) minmax(0, 1fr) minmax(168px, 220px);
   min-height: 0;
   min-height: 0;
+  outline: none;
+  border: 0;
+  box-shadow: none;
 }
 .docs-sidebar,
 .docs-toc,
@@ -319,7 +329,10 @@
 .docs-rail-title { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #c5ced6; margin: 0 0 0.55rem 0.7rem; }
 
 .docs-page-title:focus,
+.docs-article,
 .docs-article:focus,
-.docs-article:focus-visible {
+.docs-article:focus-visible,
+.docs-stage,
+.docs-stage:focus {
   outline: none;
 }
