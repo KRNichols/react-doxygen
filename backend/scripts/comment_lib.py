@@ -1,7 +1,7 @@
 """Fail the build when first-party functions lack a five-part comment.
 
-Inventories backend/*.py and frontend/src/**/*.{js,jsx} using the same
-function rules as docs-writer/grade-comments-20260826*.md.
+Inventories functions plus pipeline YAML jobs, dependabot updates,
+Makefile targets, and pipeline.sh case arms with the same quality bar.
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 PARTS = ("WHAT", "WHY", "WHO", "WHERE", "HOW")
 LABEL_RE = re.compile(
-    r"^\s*(?:\*\s*)?(WHAT|WHY|WHO|WHERE|HOW)\s*:\s*(.*)$",
+    r"^\s*(?:#\s*)?(?:\*\s*)?(WHAT|WHY|WHO|WHERE|HOW)\s*:\s*(.*)$",
     re.IGNORECASE,
 )
 PLACEHOLDER_RE = re.compile(
@@ -254,6 +254,7 @@ def preceding_js_comment(lines, idx):
         return "\n".join(lines[i + 1:end + 1])
     return ""
 
+
 def js_candidates(lines):
     """
     What: Find JS/JSX function names and the line index they start on.
@@ -281,6 +282,7 @@ def js_candidates(lines):
             found.append((idx, match.group("name")))
     return found
 
+
 def check_js_file(path, source):
     """
     What: Inventory JS/JSX functions and fail weak five-part comments.
@@ -306,10 +308,14 @@ def _is_first_party(path):
     Why: Mock HTML, dist, and node_modules must not fail the comment check.
     Who: git_delta_paths and all_first_party.
     Where: backend py files and frontend/src js/jsx.
-    How: Suffix plus directory prefix; skip scratch _part files and venv.
+    How: Suffix plus directory prefix; skip scratch _part files, venv, and test trees.
     """
     rel = repo_rel(path)
+    if rel in CONFIG_RELS:
+        return True
     if "/_part" in rel:
+        return False
+    if "/tests/" in rel or rel.endswith(".test.js") or rel.endswith(".test.jsx"):
         return False
     if rel.startswith("backend/") and path.suffix == ".py":
         if "/doxygen-mock/" in rel or "/.venv/" in rel or "/mailbox/" in rel:
@@ -318,6 +324,7 @@ def _is_first_party(path):
     if rel.startswith("frontend/src/") and path.suffix in {".js", ".jsx"}:
         return True
     return False
+
 
 def git_delta_paths(base=None):
     """
@@ -374,6 +381,7 @@ def all_first_party():
     paths += list((backend / "scripts").glob("*.py"))
     paths += list(frontend_src.rglob("*.js"))
     paths += list(frontend_src.rglob("*.jsx"))
+    paths += [ROOT / rel for rel in CONFIG_RELS]
     return [p for p in paths if p.is_file() and _is_first_party(p)]
 
 def check_path(path):
@@ -385,6 +393,15 @@ def check_path(path):
     How: Suffix py uses check_python_file; js/jsx uses check_js_file.
     """
     source = path.read_text(encoding="utf-8")
+    rel = repo_rel(path)
+    if rel == "scripts/pipeline.sh":
+        return check_pipeline_sh(path, source)
+    if path.name == "Makefile":
+        return check_makefile(path, source)
+    if rel == ".github/dependabot.yml":
+        return check_dependabot(path, source)
+    if path.suffix in {".yml", ".yaml"} and rel in CONFIG_RELS:
+        return check_yaml_jobs(path, source)
     if path.suffix == ".py":
         return check_python_file(path, source)
     return check_js_file(path, source)
@@ -411,3 +428,203 @@ def run_check(args):
     for path in sorted(paths):
         failures.extend(check_path(path))
     return failures, paths
+
+CONFIG_RELS = (
+    ".github/workflows/ci.yml",
+    ".github/workflows/security.yml",
+    ".github/workflows/agents.yml",
+    ".github/dependabot.yml",
+    ".gitlab-ci.yml",
+    "Makefile",
+    "scripts/pipeline.sh",
+)
+
+YAML_TOP_SKIP = frozenset(
+    {
+        "name",
+        "on",
+        "concurrency",
+        "permissions",
+        "env",
+        "defaults",
+        "run-name",
+        "workflow",
+        "stages",
+        "variables",
+        "default",
+        "include",
+        "image",
+        "cache",
+        "before_script",
+        "after_script",
+    }
+)
+
+
+def preceding_hash_comment(lines, idx):
+    """
+    What: Collect the # comment block immediately above a config item.
+    Why: YAML jobs, make targets, and shell case arms keep house comments above the name.
+    Who: The config-block checkers below.
+    Where: Lines just before a job, update, target, or case arm.
+    How: Skip blanks, then take a run of hash comments. Empty if the neighbor is code.
+    """
+    i = idx - 1
+    while i >= 0 and not lines[i].strip():
+        i -= 1
+    if i < 0 or not lines[i].lstrip().startswith("#"):
+        return ""
+    end = i
+    while i >= 0 and (not lines[i].strip() or lines[i].lstrip().startswith("#")):
+        i -= 1
+    chunk = [line for line in lines[i + 1 : end + 1] if line.lstrip().startswith("#")]
+    return "\n".join(chunk)
+
+
+def next_indented_body(lines, idx):
+    """
+    What: First non-comment line that belongs to a YAML block.
+    Why: HOW must not copy the next real key or script line.
+    Who: check_yaml_jobs and check_dependabot.
+    Where: Lines after a job or package-ecosystem key.
+    How: Walk forward and return the first non-empty, non-hash line.
+    """
+    i = idx + 1
+    while i < len(lines):
+        stripped = lines[i].strip()
+        if not stripped or stripped.startswith("#"):
+            i += 1
+            continue
+        return stripped
+    return ""
+
+
+def report_config(path, line, name, comment, body):
+    """
+    What: Build failure lines for one config block using the function quality bar.
+    Why: Jobs and targets must fail for the same reasons a function fails.
+    Who: Each config checker after it finds a name and its comment.
+    Where: file:line:name:reason, same shape as Python and JS reports.
+    How: parse_five_parts plus quality_reasons; empty list when the block is clean.
+    """
+    parts = parse_five_parts(comment)
+    reasons = quality_reasons(comment, parts, body)
+    if not reasons:
+        return []
+    return [f"{repo_rel(path)}:{line}:{name}:{'; '.join(reasons)}"]
+
+
+def check_yaml_jobs(path, source):
+    """
+    What: Inventory GitHub and GitLab pipeline jobs and grade their comments.
+    Why: Function --all used to skip YAML, so a job could ship with no layman comment.
+    Who: check_path for workflow and .gitlab-ci.yml files.
+    Where: A jobs: map on GitHub, or top-level job keys on GitLab.
+    How: Find job names, take the hash block above each, score with quality_reasons.
+    """
+    lines = source.splitlines()
+    failures = []
+    in_jobs = False
+    github_style = any(re.match(r"^jobs:\s*$", line) for line in lines)
+    for idx, line in enumerate(lines):
+        if re.match(r"^jobs:\s*$", line):
+            in_jobs = True
+            continue
+        if github_style:
+            if in_jobs and line and not line.startswith(" ") and not line.startswith("#"):
+                in_jobs = False
+            match = re.match(r"^  ([A-Za-z0-9_.-]+):\s*$", line)
+            if not (in_jobs and match):
+                continue
+            name = match.group(1)
+        else:
+            match = re.match(r"^([A-Za-z0-9_.:-]+):\s*$", line)
+            if not match or match.group(1) in YAML_TOP_SKIP:
+                continue
+            name = match.group(1)
+        comment = preceding_hash_comment(lines, idx)
+        body = next_indented_body(lines, idx)
+        failures.extend(report_config(path, idx + 1, name, comment, body))
+    return failures
+
+
+def check_dependabot(path, source):
+    """
+    What: Inventory each Dependabot ecosystem update and grade its comment.
+    Why: A weekly update block without layman comments is a config-block miss.
+    Who: check_path for .github/dependabot.yml.
+    Where: Each package-ecosystem list item.
+    How: Name the block from the ecosystem value; score the hash block above it.
+    """
+    lines = source.splitlines()
+    failures = []
+    for idx, line in enumerate(lines):
+        match = re.match(r"^\s*-\s+package-ecosystem:\s*(\S+)\s*$", line)
+        if not match:
+            continue
+        name = match.group(1).strip().strip("\"'")
+        comment = preceding_hash_comment(lines, idx)
+        body = next_indented_body(lines, idx)
+        failures.extend(report_config(path, idx + 1, name, comment, body))
+    return failures
+
+
+def check_makefile(path, source):
+    """
+    What: Inventory Makefile targets and grade the comment above each one.
+    Why: make ci names must stay documented the same way functions are.
+    Who: check_path for the repo-root Makefile.
+    Where: Target lines that are not dot-specials like .PHONY.
+    How: Regex for name: at column 0; body is the first tab recipe or prereq list.
+    """
+    lines = source.splitlines()
+    failures = []
+    for idx, line in enumerate(lines):
+        if line.startswith("\t") or line.lstrip().startswith("#"):
+            continue
+        match = re.match(r"^([A-Za-z0-9_./?*%@+-]+):(\s.*)?$", line)
+        if not match:
+            continue
+        name = match.group(1)
+        if name.startswith("."):
+            continue
+        rest = (match.group(2) or "").strip()
+        body = rest
+        if not body:
+            body = next_indented_body(lines, idx)
+        comment = preceding_hash_comment(lines, idx)
+        failures.extend(report_config(path, idx + 1, name, comment, body))
+    return failures
+
+
+def check_pipeline_sh(path, source):
+    """
+    What: Inventory pipeline.sh case arms and grade the comment above each one.
+    Why: A WHAT-only arm used to pass; the function bar requires all five parts.
+    Who: check_path for scripts/pipeline.sh.
+    Where: The case \"$slice\" in arms, including the fallback star arm.
+    How: Lines that look like name); body is the command after the paren.
+    """
+    lines = source.splitlines()
+    failures = []
+    in_case = False
+    for idx, line in enumerate(lines):
+        if re.search(r"\bcase\b.*\bin\b", line):
+            in_case = True
+            continue
+        if in_case and re.match(r"^esac\b", line.strip()):
+            break
+        if not in_case:
+            continue
+        match = re.match(r"^(\s*)([^)#]+)\s*\)(.*)$", line)
+        if not match:
+            continue
+        name = match.group(2).strip()
+        if name == "*":
+            name = "star"
+        body = match.group(3).strip().rstrip(";").strip()
+        if not body:
+            body = next_indented_body(lines, idx)
+        comment = preceding_hash_comment(lines, idx)
+        failures.extend(report_config(path, idx + 1, name, comment, body))
+    return failures
