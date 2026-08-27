@@ -1,0 +1,68 @@
+import { Link } from "react-router-dom";
+import { useCopy } from "../copy.jsx";
+
+/**
+ * What: Wordmark SVG for the Boeing lockup (header and footer).
+ * Why: Both chrome bars share one mark so invert/color stay consistent.
+ * Who: BrandHeader and Footer.
+ * Where: Site header lockup and the simple footer.
+ * How: Render the path mark; invert switches white vs Boeing blue.
+ */
+function BoeingMark({ invert = true }) {
+  const copy = useCopy();
+  const alt = copy.brand?.markAlt || "Boeing";
+  const fill = invert ? "#ffffff" : "#0033A1";
+  return (
+    <svg className="brand-mark-svg" viewBox="0 0 141.94 32.52" role="img" aria-label={alt}>
+      <title>{alt}</title>
+      <path fill={fill} d="M21.48,19.8A11.1,11.1,0,0,0,22.59,15a11.38,11.38,0,0,0-5-9.45A79.37,79.37,0,0,1,23.52,0a53.33,53.33,0,0,0-6.93,4.92A11.39,11.39,0,0,0,2.69,22.41c-2.21,4.72-2.51,8.44-.6,9.75S8.62,31.05,11.23,27c0,0-4.12,3.72-6.43,2.92-1.41-.51-1.41-2.72-.3-5.73a11.33,11.33,0,0,0,6.73,2.21,10.84,10.84,0,0,0,7.94-3.32l.4.81c4.93-.41,19.7-.81,19.7-.81C39.27,22.31,29.52,23,21.48,19.8ZM1.18,15A9.91,9.91,0,0,1,11.05,5h0a9.15,9.15,0,0,1,4.12.91,55.08,55.08,0,0,0-12,15.17A10.65,10.65,0,0,1,1.18,15Zm9.91,10A9.82,9.82,0,0,1,5,22.91,66.25,66.25,0,0,1,16.46,6.64a10.06,10.06,0,0,1,3.72,12.65,17.26,17.26,0,0,1-4.72-3.11l3,5.63A10.23,10.23,0,0,1,11.09,25Z" />
+      <polygon fill={fill} points="89.11 13.97 91.02 11.45 84.49 11.45 86.1 9.34 92.53 9.34 94.44 6.93 81.58 6.93 72.73 18.69 85.6 18.69 87.41 16.18 80.97 16.18 82.68 13.97 89.11 13.97" />
+      <polygon fill={fill} points="98.06 6.93 89.22 18.69 95.65 18.69 104.49 6.93 98.06 6.93" />
+      <polygon fill={fill} points="119.46 6.93 114.94 12.86 113.53 6.93 108.51 6.93 99.77 18.69 103.99 18.69 108.41 12.76 109.82 18.69 114.84 18.69 123.68 6.93 119.46 6.93" />
+      <path fill={fill} d="M140.37,6.93H130A5.37,5.37,0,0,0,125.69,9l-5.32,7a1.62,1.62,0,0,0-.3.9,1.58,1.58,0,0,0,1.55,1.61H132a5.34,5.34,0,0,0,4.32-2.11l1.3-1.71h1.51l1.93-2.47h-8l-2.51,3.31a1.68,1.68,0,0,1-1.11.61h-1.81a.44.44,0,0,1-.4-.4c0-.11,0-.21.1-.21L131.58,10a1.58,1.58,0,0,1,1.11-.61h1.81a.43.43,0,0,1,.4.41c0,.1,0,.2-.1.2l-.7.9h6.43l1.1-1.51a1.63,1.63,0,0,0,.31-.9,1.58,1.58,0,0,0-1.61-1.51Z" />
+      <path fill={fill} d="M76.35,8.54a1.59,1.59,0,0,0-1.57-1.61H64.39A5.37,5.37,0,0,0,60.09,9l-5.32,7a1.65,1.65,0,0,0,1.17,2.6h10.5a5.3,5.3,0,0,0,4.32-2.11l5.33-7a2.89,2.89,0,0,0,.3-.9Zm-7.26,1.51L64.9,15.64a1.79,1.79,0,0,1-1.11.61H62a.44.44,0,0,1-.4-.4c0-.1,0-.21.1-.21L65.9,10A1.79,1.79,0,0,1,67,9.41h1.8a.43.43,0,0,1,.41.41.3.3,0,0,1-.1.2Z" />
+      <path fill={fill} d="M52,13.06a5.44,5.44,0,0,0,3.12-2l1.2-1.61a1.62,1.62,0,0,0,.3-.9,1.59,1.59,0,0,0-1.56-1.62H42L33.14,18.69H46.6a5.36,5.36,0,0,0,4.33-2.11L52.09,15a1.09,1.09,0,0,0,.2-.8.92.92,0,0,0-.3-1.11Zm-5.94,1.51-.8,1a1.68,1.68,0,0,1-1.11.61h-2.6l1.71-2.31H45.8a.42.42,0,0,1,.4.4c0,.2,0,.3-.1.3Zm3.42-4.52-.6.9a1.78,1.78,0,0,1-1.11.6H45.2l1.61-2.11h2.51a.43.43,0,0,1,.4.41c-.1,0-.1.1-.2.2Z" />
+    </svg>
+  );
+}
+
+/**
+ * What: Top chrome: Boeing mark + program name linking home.
+ * Why: Every scene needs the same branded header without Search/Menu.
+ * Who: Login, Signup, SignupSent, Success, Denied, LoggedOut.
+ * Where: .site-header on each stage.
+ * How: Read brand.programName / headerAria from useCopy().
+ */
+export default function BrandHeader() {
+  const { brand } = useCopy();
+  return (
+    <header className="site-header">
+      <div className="site-header-inner">
+        <Link className="brand-lockup" to="/" aria-label={brand.headerAria}>
+          <BoeingMark />
+          <span className="brand-program">{brand.programName}</span>
+        </Link>
+      </div>
+    </header>
+  );
+}
+
+/**
+ * What: Simple footer (mark + two legal lines). No link columns.
+ * Why: Demonstration disclaimer must stay configurable like the rest of the copy.
+ * Who: Same pages as BrandHeader.
+ * Where: .site-footer at the bottom of each stage.
+ * How: brand.footerNote and brand.footerCopy from useCopy().
+ */
+export function Footer() {
+  const { brand } = useCopy();
+  return (
+    <footer className="site-footer">
+      <div className="footer-simple">
+        <BoeingMark invert />
+        <p>{brand.footerNote}</p>
+        <p className="footer-copy">{brand.footerCopy}</p>
+      </div>
+    </footer>
+  );
+}
