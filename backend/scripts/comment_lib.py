@@ -602,7 +602,7 @@ def check_pipeline_sh(path, source):
     What: Inventory pipeline.sh case arms and grade the comment above each one.
     Why: A WHAT-only arm used to pass; the function bar requires all five parts.
     Who: check_path for scripts/pipeline.sh.
-    Where: The case \"$slice\" in arms, including the fallback star arm.
+    Where: The case \u0022$slice\u0022 in arms, including the fallback star arm.
     How: Lines that look like name); body is the command after the paren.
     """
     lines = source.splitlines()
