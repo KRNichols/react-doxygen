@@ -227,7 +227,6 @@ def mock_okta_hosted():
 
     rec = store.peek_state(state) if state else None
     if rec is None:
-        # SPA testers can POST credentials without a prior authorize hop.
         state, nonce = store.create_state(OKTA_CLIENT_ID, OKTA_REDIRECT_URI)
         session["oauth_state"] = state
         rec = store.peek_state(state)
@@ -244,7 +243,6 @@ def mock_okta_hosted():
     )
 
     if request.is_json:
-        # Complete the exchange in-process so the SPA can navigate once.
         exchanged = store.exchange_code(code, state)
         if exchanged is None:
             return jsonify({"error": "Authorization code exchange failed."}), 400
@@ -410,7 +408,7 @@ register_docs(app, _session_user)
 if DIST.is_dir():
 
     @app.route("/", defaults={"path": ""})
-    @app.route("/\u003cpath:path\u003e")
+    @app.route("/<path:path>")
     def spa_fallback(path: str):
         """
         What: Serve the built React app (index.html or a static asset).
@@ -428,16 +426,16 @@ if DIST.is_dir():
 
 
 MOCK_LOGIN_HTML = """
-\u003c!DOCTYPE html\u003e
-\u003chtml lang="en"\u003e
-\u003chead\u003e
-  \u003cmeta charset="utf-8" /\u003e
-  \u003cmeta name="viewport" content="width=device-width, initial-scale=1" /\u003e
-  \u003ctitle\u003eMock Okta · F/A-18 Program\u003c/title\u003e
-  \u003clink rel="preconnect" href="https://fonts.googleapis.com" /\u003e
-  \u003clink rel="preconnect" href="https://fonts.gstatic.com" crossorigin /\u003e
-  \u003clink href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Oswald:wght@500;600&display=swap" rel="stylesheet" /\u003e
-  \u003cstyle\u003e
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mock Okta · F/A-18 Program</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Oswald:wght@500;600&display=swap" rel="stylesheet" />
+  <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
     body {
@@ -475,34 +473,34 @@ MOCK_LOGIN_HTML = """
     }
     .hint { margin: 1.1rem 0 0; font-size: .75rem; color: #8aa0c4; line-height: 1.45; }
     code { color: #e8eef8; }
-  \u003c/style\u003e
-\u003c/head\u003e
-\u003cbody\u003e
-  \u003cmain class="card"\u003e
-    \u003cp class="eyebrow"\u003eMock identity provider\u003c/p\u003e
-    \u003ch1\u003eSign in to continue\u003c/h1\u003e
-    \u003cp class="sub"\u003eF/A-18 Program Access · hosted Okta stand-in\u003c/p\u003e
+  </style>
+</head>
+<body>
+  <main class="card">
+    <p class="eyebrow">Mock identity provider</p>
+    <h1>Sign in to continue</h1>
+    <p class="sub">F/A-18 Program Access · hosted Okta stand-in</p>
     {% if error %}
-      \u003cdiv class="err" role="alert"\u003e{{ error }}\u003c/div\u003e
+      <div class="err" role="alert">{{ error }}</div>
     {% endif %}
-    \u003cform method="post" action="/api/auth/mock/okta"\u003e
-      \u003cinput type="hidden" name="state" value="{{ state }}" /\u003e
-      \u003cinput type="hidden" name="client_id" value="{{ client_id }}" /\u003e
-      \u003cinput type="hidden" name="redirect_uri" value="{{ redirect_uri }}" /\u003e
-      \u003clabel for="email"\u003eEmail\u003c/label\u003e
-      \u003cinput id="email" name="email" type="email" autocomplete="username" required /\u003e
-      \u003clabel for="password"\u003ePassword\u003c/label\u003e
-      \u003cinput id="password" name="password" type="password" autocomplete="current-password" required /\u003e
-      \u003cbutton type="submit"\u003eAuthenticate\u003c/button\u003e
-    \u003c/form\u003e
-    \u003cp class="hint"\u003e
-      Demo accounts\u003cbr /\u003e
-      \u003ccode\u003ef18.pilot@boeing.com\u003c/code\u003e / \u003ccode\u003eHornetReady1\u003c/code\u003e → granted\u003cbr /\u003e
-      \u003ccode\u003evisitor@example.com\u003c/code\u003e / \u003ccode\u003eNoClearance\u003c/code\u003e → denied
-    \u003c/p\u003e
-  \u003c/main\u003e
-\u003c/body\u003e
-\u003c/html\u003e
+    <form method="post" action="/api/auth/mock/okta">
+      <input type="hidden" name="state" value="{{ state }}" />
+      <input type="hidden" name="client_id" value="{{ client_id }}" />
+      <input type="hidden" name="redirect_uri" value="{{ redirect_uri }}" />
+      <label for="email">Email</label>
+      <input id="email" name="email" type="email" autocomplete="username" required />
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required />
+      <button type="submit">Authenticate</button>
+    </form>
+    <p class="hint">
+      Demo accounts<br />
+      <code>f18.pilot@boeing.com</code> / <code>HornetReady1</code> → granted<br />
+      <code>visitor@example.com</code> / <code>NoClearance</code> → denied
+    </p>
+  </main>
+</body>
+</html>
 """
 
 
