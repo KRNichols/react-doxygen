@@ -23,7 +23,7 @@
     "vitest": "2.1.0",
     "jsdom": "25.0.0",
     "@testing-library/react": "16.0.1",
-    "@testing-library/jest-dom": "6.5.0",
+    "@testing-library/jest-dom": "7.0.1",
     "eslint": "9.10.0",
     "globals": "15.9.0"
   }
