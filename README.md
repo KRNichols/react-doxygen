@@ -105,9 +105,11 @@ Classification banner (display-only; copy root `.env.example` to `.env`):
 
 ## Checks and CI
 
-`make check` is the fast local lint + five-part comment gate.
+`make check` is the fast local lint + five-part comment gate + approved-package allowlist.
 
-`make ci` is the portable product contract (also `scripts/pipeline.sh`): ruff, comments `--all`, pytest, frontend lint/test, frontend build.
+`make ci` is the portable product contract (also `scripts/pipeline.sh`): ruff, comments `--all`, unused-code, approved packages, pytest, frontend lint/test, frontend build.
+
+Approved first-party packages (current tree only; not an ATO and not scanner-proof): [docs/approved-packages.md](docs/approved-packages.md). `make packages` fails any name not on that list.
 
 GitHub Actions (`.github/workflows/ci.yml`) is the hosted pipeline. GitLab CI (`.gitlab-ci.yml`) uses the same contract — both call `make ci` / the pipeline script. A separate security workflow runs pip-audit and production high+ Node audit so advisory noise does not fail the product gate.
 

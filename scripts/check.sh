@@ -3,7 +3,7 @@
 # WHY: Hosted jobs and make targets must call one script so the gates match.
 # WHO: make check/lint/comments/deadcode/quality and pipeline.sh.
 # WHERE: scripts/check.sh from the repo root.
-# HOW: Prefer the local virtualenv tools. Each named slice is a function below.
+# HOW: Prefer the local virtualenv tools. Named slices: lint, comments, deadcode, packages.
 set -e
 ROOT=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
 cd "$ROOT"
@@ -47,11 +47,20 @@ comments() {
 deadcode() {
   "$RUFF" check --select F401,F841 backend/*.py backend/scripts/*.py
 }
+# WHAT: Fail when a declared package is not on the repo allowlist.
+# WHY: A new first-party dependency must not land without an allowlist edit.
+# WHO: make packages, make check, make quality, make ci.
+# WHERE: backend/scripts/check_packages.py against approved-packages.json.
+# HOW: Run the checker with the same PYTHON as the other quality slices.
+packages() {
+  "$PYTHON" backend/scripts/check_packages.py
+}
 case "$target" in
   lint) lint ;;
   comments) comments ;;
   deadcode) deadcode ;;
-  check) lint && comments ;;
+  packages) packages ;;
+  check) lint && comments && packages ;;
   ci) sh "$ROOT/scripts/pipeline.sh" ci ;;
-  *) echo "usage: $0 [check|lint|comments|deadcode|ci]" >&2; exit 2 ;;
+  *) echo "usage: $0 [check|lint|comments|deadcode|packages|ci]" >&2; exit 2 ;;
 esac

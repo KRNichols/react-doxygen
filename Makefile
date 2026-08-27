@@ -4,13 +4,13 @@
 # WHERE: Repo root. Each target calls one script.
 # HOW: ci is quality plus backend plus frontend plus build. There is no empty ci target.
 
-.PHONY: --all check lint comments deadcode test ci security security-pip security-node backend frontend build quality agents
+.PHONY: --all check lint comments deadcode packages test ci security security-pip security-node backend frontend build quality agents
 
 # WHAT: Fast lint plus the five-part comment gate.
 # WHY: Catch style and missing comments without running the full test suite.
 # WHO: A developer on a laptop, or make check --all.
 # WHERE: scripts/check.sh check.
-# HOW: Shell out to check.sh. The --all phony target exists so GNU make accepts the flag.
+# HOW: Shell out to check.sh (lint, comments, packages). The --all phony exists so GNU make accepts the flag.
 check:
 	sh scripts/check.sh check
 
@@ -38,14 +38,23 @@ comments:
 deadcode:
 	sh scripts/check.sh deadcode
 
-# WHAT: Comments plus unused-code together.
-# WHY: The hosted quality job is this pair, not lint plus tests.
+# WHAT: Declared-package allowlist gate.
+# WHY: A new first-party dependency must fail CI until it is on the list.
+# WHO: make packages, make check, make quality, make ci.
+# WHERE: approved-packages.json vs requirements files and frontend/package.json.
+# HOW: scripts/check.sh packages.
+packages:
+	sh scripts/check.sh packages
+
+# WHAT: Comments, unused-code, and the approved-package allowlist.
+# WHY: The hosted quality job is this trio, not lint plus tests.
 # WHO: make quality and GitHub/GitLab quality jobs.
-# WHERE: Same scripts as comments and deadcode.
-# HOW: Run both slices in order.
+# WHERE: Same scripts as comments, deadcode, and packages.
+# HOW: Run the three slices in that order.
 quality:
 	sh scripts/check.sh comments
 	sh scripts/check.sh deadcode
+	sh scripts/check.sh packages
 
 # WHAT: Python lint and tests with a coverage floor.
 # WHY: Auth, copy, signup, and docs handlers must stay green.
@@ -81,7 +90,7 @@ test: backend frontend
 # WHAT: Portable product contract.
 # WHY: GitHub, GitLab, and a laptop must run the same four slices.
 # WHO: make ci, scripts/pipeline.sh ci, the agents overlay.
-# WHERE: quality, backend, frontend, then build. No dummy waiter.
+# WHERE: quality (comments, deadcode, packages), backend, frontend, then build. No dummy waiter.
 # HOW: Prerequisite list. Matches pipeline.sh ci.
 ci: quality backend frontend build
 

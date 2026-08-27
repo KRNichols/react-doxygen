@@ -30,12 +30,18 @@ case "$slice" in
   # WHERE: backend Python through check.sh.
   # HOW: ruff rules F401 and F841 only.
   deadcode) sh scripts/check.sh deadcode ;;
-  # WHAT: Comments plus unused-code together.
-  # WHY: The hosted quality job is this pair, not lint plus tests.
+  # WHAT: Declared-package allowlist gate.
+  # WHY: A new first-party dependency must fail CI until it is on the list.
+  # WHO: make packages, make quality, make ci.
+  # WHERE: approved-packages.json vs the requirement and package.json manifests.
+  # HOW: Shell out to scripts/check.sh packages.
+  packages) sh scripts/check.sh packages ;;
+  # WHAT: Comments, unused-code, and the approved-package allowlist.
+  # WHY: The hosted quality job is this trio, not lint plus tests.
   # WHO: make quality and GitHub/GitLab quality jobs.
-  # WHERE: Same scripts as the comments and deadcode arms.
-  # HOW: Run comments, then deadcode, in that order.
-  quality) sh scripts/check.sh comments; sh scripts/check.sh deadcode ;;
+  # WHERE: Same scripts as the comments, deadcode, and packages arms.
+  # HOW: Run comments, deadcode, then packages, in that order.
+  quality) sh scripts/check.sh comments; sh scripts/check.sh deadcode; sh scripts/check.sh packages ;;
   # WHAT: Python lint and tests with a coverage floor.
   # WHY: Auth, copy, signup, and docs handlers must stay green.
   # WHO: make backend, make test, make ci, hosted backend job.
@@ -76,10 +82,11 @@ case "$slice" in
   # WHY: GitHub, GitLab, and a laptop must run the same four slices.
   # WHO: make ci, this script with no args, and the agents overlay.
   # WHERE: quality, backend, frontend, then build. No dummy waiter.
-  # HOW: comments, deadcode, backend, frontend, then build, each via its script.
+  # HOW: comments, deadcode, packages, backend, frontend, then build, each via its script.
   ci)
     sh scripts/check.sh comments
     sh scripts/check.sh deadcode
+    sh scripts/check.sh packages
     sh scripts/run-backend.sh
     sh scripts/run-frontend.sh
     sh scripts/run-build.sh
