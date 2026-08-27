@@ -107,15 +107,13 @@ Actions: https://github.com/KRNichols/react-doxygen/actions
 
 ## API
 
-- `GET /api/health`
-- `GET /api/copy`
-- `GET /api/auth/login`
-- `GET|POST /api/auth/mock/okta`
-- `GET /api/auth/callback`
-- `GET|POST /api/auth/logout`
-- `GET /api/auth/me`
-- `POST /api/auth/signup`
-- `GET /api/auth/signup/config`
-- `GET /api/auth/signup/mailbox` (development only)
-- `GET /api/docs/meta`
-- `GET /api/docs/<path>`
+Route-by-route request bodies, response JSON, and status codes are in
+[docs/api.md](docs/api.md).
+
+The portal session is the httpOnly `f18_session` cookie (SameSite=Lax,
+eight-hour lifetime, `Secure` off in this demo), signed with `FLASK_SECRET`.
+The SPA sends it on `/api/*` with `credentials: include`. A successful mock
+login — granted or denied — sets the cookie; `GET /api/auth/me` then returns
+`clearance: granted` or `clearance: denied`. No cookie is **401**.
+Documentation routes additionally return **403** when the session exists but
+clearance is not granted.
