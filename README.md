@@ -23,6 +23,38 @@ Denied is a completed login. `GET /api/auth/me` returns `clearance: denied`.
 
 Header chrome is the mark plus program name. Footer is the mark, the demo line, and copyright. There is no flying Hornet animation, no flyout help, and no DocsHero photo band.
 
+## Screenshots
+
+Current clean portal surfaces (no flyouts, no flying Hornet, no DocsHero):
+
+### Sign in (`/` / `/login`)
+
+![Sign-in card with Okta and demo-account fields](docs/screenshots/login.png)
+
+### Request access (`/signup`)
+
+![Request program access form](docs/screenshots/signup.png)
+
+### Request sent (`/signup-sent`)
+
+![Access request sent confirmation](docs/screenshots/signup-sent.png)
+
+### Signed in (`/success`)
+
+![Granted session card with Open Documentation](docs/screenshots/success.png)
+
+### Not authorized (`/denied`)
+
+![Denied session card for visitor@example.com](docs/screenshots/denied.png)
+
+### Signed out (`/logged-out`)
+
+![Session ended confirmation](docs/screenshots/logged-out.png)
+
+### Documentation (`/docs`)
+
+![Heroless Doxygen reader on the Main Page](docs/screenshots/docs.png)
+
 ## How to run Flask + Vite
 
 1. Copy `backend/.env.example` to `backend/.env` if you need local overrides. Do not commit `.env`. Leave `OKTA_ISSUER` empty for the mock IdP.
