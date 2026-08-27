@@ -1,0 +1,77 @@
+# GitLab CI. GitHub Actions YAML is not drop-in here.
+# Portable contract: make ci / scripts/pipeline.sh
+# Does not register a runner or invent a GitLab remote.
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+stages:
+  - backend
+  - frontend
+  - quality
+  - security
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  PYTHON: python
+  RUFF: ruff
+
+backend:
+  stage: backend
+  image: python:3.12
+  cache:
+    key: pip-3.12
+    paths:
+      - .cache/pip
+  before_script:
+    - python -m pip install -r backend/requirements.txt -r backend/requirements-dev.txt
+  script:
+    - make backend
+
+frontend:
+  stage: frontend
+  image: node:22
+  cache:
+    key: node-22
+    paths:
+      - frontend/node_modules
+  variables:
+    CI: "true"
+  script:
+    - make frontend
+
+quality:
+  stage: quality
+  image: python:3.12
+  cache:
+    key: pip-3.12
+    paths:
+      - .cache/pip
+  before_script:
+    - python -m pip install -r backend/requirements.txt -r backend/requirements-dev.txt
+  script:
+    - make quality
+
+security:pip:
+  stage: security
+  image: python:3.12
+  cache:
+    key: pip-3.12
+    paths:
+      - .cache/pip
+  before_script:
+    - python -m pip install pip-audit
+  script:
+    - make security-pip
+
+security:node:
+  stage: security
+  image: node:22
+  cache:
+    key: node-22
+    paths:
+      - frontend/node_modules
+  script:
+    - make security-node

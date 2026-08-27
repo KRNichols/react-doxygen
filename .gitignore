@@ -1,0 +1,21 @@
+node_modules/
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+dist/
+.DS_Store
+*.log
+frontend/dist/
+
+# mock signup mailbox (keep the directory)
+backend/mailbox/*.eml
+backend/mailbox/*.json
+
+# test / lint caches
+.pytest_cache/
+.coverage
+htmlcov/
+.ruff_cache/
+*.egg-info/

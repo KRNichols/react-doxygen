@@ -1,0 +1,58 @@
+# Dependency advisories. Kept out of the product CI gate so advisory
+# noise does not hide a red ruff/pytest/eslint run.
+# pip-audit has no high-only severity filter; it fails this workflow
+# on any reported advisory (continue-on-error: false).
+# Node audit is limited to production deps at high+ (--audit-level=high).
+name: Security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 9 * * 1"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  python-audit:
+    name: pip-audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-dev.txt
+      - name: Install pip-audit
+        run: python -m pip install pip-audit
+      - name: Audit backend/requirements.txt
+        continue-on-error: false
+        run: python -m pip_audit -r backend/requirements.txt
+
+  node-audit:
+    name: node-audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install production tree
+        working-directory: frontend
+        run: npm ci --omit=dev
+      - name: Audit production high+
+        continue-on-error: false
+        working-directory: frontend
+        run: npm audit --omit=dev --audit-level=high
