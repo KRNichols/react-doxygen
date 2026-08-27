@@ -17,6 +17,7 @@
   --radius: 4px;
   --shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
   --header-h: 88px;
+  --class-banner-h: 1.7rem;
 }
 
 * { box-sizing: border-box; }
@@ -82,22 +83,38 @@ a { color: inherit; }
 .horizon,
 .atmosphere-cloud { display: none; }
 
+/*
+ * WHAT: Fixed classification strips flush to the viewport edges.
+ * WHY: Both labels must stay visible while the page scrolls.
+ * WHO: ClassificationBanner on every stage and /docs.
+ * WHERE: .class-banner-top at top:0; .class-banner-bottom at bottom:0.
+ * HOW: position:fixed; chrome padding reserves the banner height so header/footer do not sit under them.
+ */
 .class-banner {
+  position: fixed;
+  left: 0;
+  right: 0;
+  z-index: 50;
   width: 100%;
+  margin: 0;
   padding: 0.32rem 0.75rem;
+  text-align: center;
   font-weight: 800;
   font-size: 0.78rem;
   letter-spacing: 0.22em;
   text-transform: uppercase;
-  text-align: center;
-  position: relative;
-  z-index: 22;
+  line-height: 1.25;
 }
+.class-banner-top { top: 0; }
+.class-banner-bottom { bottom: 0; }
+.class-banner-text { display: block; }
 .chrome-top,
 .chrome-bottom {
   position: relative;
   z-index: 21;
 }
+.chrome-top { padding-top: var(--class-banner-h); }
+.chrome-bottom { padding-bottom: var(--class-banner-h); }
 
 .site-header {
   position: relative;
@@ -257,7 +274,7 @@ input:focus {
   cursor: pointer;
   text-decoration: none;
 }
-.btn::after { content: "\u203a"; font-size: 1.15rem; line-height: 0; font-weight: 400; }
+.btn::after { content: "\203a"; font-size: 1.15rem; line-height: 0; font-weight: 400; }
 .btn:hover { background: #00287a; border-color: #00287a; }
 .btn:disabled { opacity: 0.6; cursor: wait; }
 .btn.ghost {
@@ -375,7 +392,7 @@ input:focus {
   padding: 0.5rem 0.8rem;
   border-radius: 4px;
 }
-.skip-link:focus { top: 1rem; }
+.skip-link:focus { top: calc(var(--class-banner-h) + 0.5rem); z-index: 60; }
 
 .btn:focus-visible,
 input:focus-visible,
