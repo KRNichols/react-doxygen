@@ -118,6 +118,18 @@ GitHub Actions (`.github/workflows/ci.yml`) is the hosted pipeline. GitLab CI (`
 
 Actions: https://github.com/KRNichols/react-doxygen/actions
 
+`make review` is the GitLab MR reviewer bot (python3 + curl, no extra packages). On a laptop it is a dry-run: it scans the local diff, prints one note, and does not call the API. On a GitLab `merge_request_event` it reads the MR diff and this pipeline's job results, posts one MR note, Approves when product gates pass and the diff has no blocking findings, and unapproves if a later push fails. `security:pip` / pip-audit staying red does not block (accepted Flask, flask-cors, and python-dotenv pins). `backend`, `frontend`, `quality`, `build`, and `security:node` do. A missing `GITLAB_REVIEWER_TOKEN` fails the review job with setup steps; it never fakes an Approve.
+
+### GitLab MR reviewer bot
+
+This bot is GitLab-only. There is no GitHub Actions reviewer job.
+
+1. Create a GitLab Project Access Token with the `api` scope and a role that can approve merge requests (Developer or Maintainer).
+2. Add CI/CD variable `GITLAB_REVIEWER_TOKEN` (masked). The job uses `CI_API_V4_URL`, so GitLab.com and self-managed both work.
+3. Add that project-bot user as an eligible (and required, if you want the wait gone) MR reviewer under Settings → Merge requests.
+
+Local check: `make review` or `make review` with `--dry-run` (via `sh scripts/review-mr.sh --dry-run`).
+
 ## API
 
 Route-by-route request bodies, response JSON, and status codes are in
