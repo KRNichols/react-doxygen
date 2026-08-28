@@ -4,7 +4,7 @@
 # WHERE: Repo root. Each target calls one script.
 # HOW: ci is quality plus backend plus frontend plus build. There is no empty ci target.
 
-.PHONY: --all check lint comments deadcode packages test ci security security-pip security-node backend frontend build quality agents
+.PHONY: --all check lint comments deadcode packages test ci security security-pip security-node backend frontend build quality agents review
 
 # WHAT: Fast lint plus the five-part comment gate.
 # WHY: Catch style and missing comments without running the full test suite.
@@ -125,6 +125,14 @@ security-node:
 # HOW: Fail if a forbidden file or chrome marker returns.
 agents:
 	python3 scripts/check-agents.py
+
+# WHAT: GitLab MR reviewer bot, local dry-run or hosted note plus Approve.
+# WHY: A required human reviewer should not sit idle when product gates already passed.
+# WHO: Developers on a laptop and the GitLab review job on merge_request_event.
+# WHERE: scripts/review-mr.sh then backend/scripts/review_mr.py.
+# HOW: Same helper both places. No live MR means dry-run; missing token on an MR fails closed.
+review:
+	sh scripts/review-mr.sh
 
 # WHAT: Accept make check --all on GNU make.
 # WHY: The comment checker already uses --all; make should not treat it as unknown.

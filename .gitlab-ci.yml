@@ -20,12 +20,13 @@ workflow:
 # WHY: Readers should see the same words on both hosts.
 # WHO: GitLab scheduler when it orders jobs.
 # WHERE: This file. build shares the frontend stage so it can run beside lint/tests.
-# HOW: Four product stages plus security. Overlay lives in quality beside comments.
+# HOW: Product stages, then security, then review. Overlay lives in quality beside comments.
 stages:
   - backend
   - frontend
   - quality
   - security
+  - review
 
 # WHAT: Shared tool names for Python jobs.
 # WHY: make backend and make quality look for PYTHON and RUFF in the environment.
@@ -176,3 +177,19 @@ agents:
   image: python:3.12
   script:
     - make agents
+
+# WHAT: GitLab MR reviewer bot that posts one note and Approves when gates pass.
+# WHY: Required-reviewer wait is too slow; a bot should Approve a green product MR.
+# WHO: A GitLab runner on merge_request_event only, after product and node-audit jobs.
+# WHERE: This file. Never a GitHub Actions job. Token is GITLAB_REVIEWER_TOKEN.
+# HOW: python:3.12 plus curl. make review. when:always so a red gate still unapproves.
+review:
+  stage: review
+  image: python:3.12
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      when: always
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq curl make
+  script:
+    - make review

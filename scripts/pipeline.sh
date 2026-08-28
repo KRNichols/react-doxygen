@@ -91,10 +91,16 @@ case "$slice" in
     sh scripts/run-frontend.sh
     sh scripts/run-build.sh
     ;;
+  # WHAT: GitLab MR reviewer slice, same helper as make review.
+  # WHY: Hosted YAML and a laptop must type the same word for the bot.
+  # WHO: make review and the GitLab review job.
+  # WHERE: scripts/review-mr.sh from the repository root.
+  # HOW: Delegate to the reviewer wrapper. This slice is not part of make ci.
+  review) sh scripts/review-mr.sh ;;
   # WHAT: Unknown slice name.
   # WHY: A typo should fail closed with a usage line, not run ci by accident.
   # WHO: Anyone who calls this script with a name that is not a slice.
   # WHERE: stderr, then exit 2.
   # HOW: Print the accepted slice names and stop.
-  *) echo "usage: $0 [ci|quality|backend|frontend|build|security]" >&2; exit 2 ;;
+  *) echo "usage: $0 [ci|quality|backend|frontend|build|security|review]" >&2; exit 2 ;;
 esac
